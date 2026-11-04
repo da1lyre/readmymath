@@ -9,11 +9,13 @@ from aiogram.types import (
     InlineKeyboardMarkup, InlineKeyboardButton,
 )
 from dotenv import load_dotenv
+from aiogram.types import WebAppInfo
 
 ENV_PATH = Path(__file__).resolve().parent.parent / "infra" / ".env"
 load_dotenv(dotenv_path=ENV_PATH)
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
+WEBAPP_URL = os.getenv("WEBAPP_URL")
 
 dp = Dispatcher()
 
@@ -21,7 +23,12 @@ dp = Dispatcher()
 def main_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[
-            [InlineKeyboardButton(text="WriteYourMath (скоро)", callback_data="soon")]
+            [
+                InlineKeyboardButton(
+                    text="Открыть WriteYourMath",
+                    web_app=WebAppInfo(url=WEBAPP_URL),
+                )
+            ]
         ]
     )
 
