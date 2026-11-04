@@ -1,0 +1,9 @@
+aiogram
+fastapi
+uvicorn
+python-dotenv
+pillow
+sympy
+pandas
+matplotlib
+numpy
