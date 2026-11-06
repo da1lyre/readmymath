@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>WriteYourMath</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: #fff;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    color: #1A1A1A;
+    height: 100%;
+    overflow: hidden;
+  }
+  #app {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    padding: 12px;
+    box-sizing: border-box;
+  }
+  h1 {
+    font-size: 16px;
+    font-weight: 600;
+    margin: 0 0 8px 0;
+    letter-spacing: 0.2px;
+  }
+  #canvasWrap {
+    flex: 1;
+    position: relative;
+    border: 1.5px solid #E5E5E5;
+    border-radius: 12px;
+    overflow: hidden;
+    background: #fff;
+  }
+  canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+    touch-action: none;
+    cursor: crosshair;
+  }
+  #toolbar {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+  }
+  button {
+    flex: 1;
+    padding: 12px;
+    font-size: 15px;
+    font-weight: 500;
+    border-radius: 10px;
+    border: none;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  #clearBtn {
+    background: #F2F2F2;
+    color: #1A1A1A;
+  }
+  #sendBtn {
+    background: #1A1A1A;
+    color: #fff;
+  }
+  #sendBtn:disabled {
+    background: #999;
+    cursor: default;
+  }
+  #result {
+    margin-top: 10px;
+    font-size: 14px;
+    min-height: 20px;
+    color: #444;
+  }
+  #result code {
+    background: #F2F2F2;
+    padding: 2px 6px;
+    border-radius: 6px;
+    font-size: 13px;
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <h1>WriteYourMath — нарисуй формулу</h1>
+  <div id="canvasWrap">
+    <canvas id="canvas"></canvas>
+  </div>
+  <div id="toolbar">
+    <button id="clearBtn">Очистить</button>
+    <button id="sendBtn" disabled>Отправить</button>
+  </div>
+  <div id="result"></div>
+</div>
+
+<script>
+  const tg = window.Telegram?.WebApp;
+  if (tg) {
+    tg.ready();
+    tg.expand();
+  }
+
+  const canvas = document.getElementById('canvas');
+  const ctx = canvas.getContext('2d');
+  const sendBtn = document.getElementById('sendBtn');
+  const clearBtn = document.getElementById('clearBtn');
+  const result = document.getElementById('result');
+
+  let drawing = false;
+  let hasInk = false;
+
+  function resize() {
+    const rect = canvas.parentElement.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+    // сохраняем текущий рисунок при ресайзе (просто — очищаем)
+    canvas.width = rect.width * dpr;
+    canvas.height = rect.height * dpr;
+    ctx.scale(dpr, dpr);
+    ctx.lineWidth = 3;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.strokeStyle = '#1A1A1A';
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(0, 0, rect.width, rect.height);
+  }
+
+  function getPos(e) {
+    const rect = canvas.getBoundingClientRect();
+    const p = e.touches ? e.touches[0] : e;
+    return { x: p.clientX - rect.left, y: p.clientY - rect.top };
+  }
+
+  function start(e) {
+    e.preventDefault();
+    drawing = true;
+    const { x, y } = getPos(e);
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+  }
+
+  function move(e) {
+    if (!drawing) return;
+    e.preventDefault();
+    const { x, y } = getPos(e);
+    ctx.lineTo(x, y);
+    ctx.stroke();
+    hasInk = true;
+    sendBtn.disabled = false;
+  }
+
+  function end(e) {
+    if (!drawing) return;
+    drawing = false;
+    ctx.closePath();
+  }
+
+  canvas.addEventListener('mousedown', start);
+  canvas.addEventListener('mousemove', move);
+  canvas.addEventListener('mouseup', end);
+  canvas.addEventListener('mouseleave', end);
+  canvas.addEventListener('touchstart', start, { passive: false });
+  canvas.addEventListener('touchmove', move, { passive: false });
+  canvas.addEventListener('touchend', end);
+
+  clearBtn.addEventListener('click', () => {
+    const rect = canvas.parentElement.getBoundingClientRect();
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(0, 0, rect.width, rect.height);
+    hasInk = false;
+    sendBtn.disabled = true;
+    result.textContent = '';
+  });
+
+  sendBtn.addEventListener('click', async () => {
+    sendBtn.disabled = true;
+    result.textContent = 'Отправляю…';
+    const dataUrl = canvas.toDataURL('image/png');
+    const blob = await (await fetch(dataUrl)).blob();
+    const form = new FormData();
+    form.append('file', blob, 'draw.png');
+
+    try {
+      const resp = await fetch('/recognize', { method: 'POST', body: form });
+      const json = await resp.json();
+      result.innerHTML = `Распознано: <code>${json.latex}</code>`;
+    } catch (err) {
+      result.textContent = 'Ошибка отправки: ' + err.message;
+    } finally {
+      sendBtn.disabled = false;
+    }
+  });
+
+  window.addEventListener('resize', resize);
+  resize();
+</script>
+</body>
+</html>
