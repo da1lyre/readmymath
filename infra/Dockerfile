@@ -26,7 +26,7 @@ ENV CRISPEMBED_CACHE_DIR=/cache
 
 WORKDIR /app
 COPY webapp/ ./webapp/
-COPY requirements.txt .
+COPY infra/requirements.txt .
 RUN pip3 install --no-cache-dir -r requirements.txt
 
 CMD ["uvicorn", "webapp.api:app", "--host", "0.0.0.0", "--port", "8000"]
