@@ -1,11 +1,32 @@
-version: '3.8'
-
 services:
+  crispembed:
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile
+    command: >
+      /opt/crispembed/build/crispembed-server
+      --ocr /cache/posformer-hw-f32.gguf
+      --host 0.0.0.0
+      --port 8080
+    volumes:
+      - ../models:/cache
+      - ../shared:/shared
+    environment:
+      - CRISPEMBED_CACHE_DIR=/cache
+    expose:
+      - "8080"
+
   api:
-    build: .
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile
     ports:
       - "8000:8000"
     volumes:
-      - ./models:/cache
+      - ../models:/cache
+      - ../shared:/shared
     environment:
       - CRISPEMBED_CACHE_DIR=/cache
+      - CRISPEMBED_SERVER_URL=http://crispembed:8080
+    depends_on:
+      - crispembed

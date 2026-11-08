@@ -12,10 +12,9 @@ RUN cmake -S . -B build -G Ninja \
     -DCRISPEMBED_BUILD_SHARED=ON \
     && cmake --build build -j$(nproc) --target crispembed-shared crispembed-server
 
-FROM ubuntu:22.04
+FROM python:3.10-slim
 
-RUN apt-get update && apt-get install -y \
-    python3 python3-pip libgomp1 \
+RUN apt-get update && apt-get install -y libgomp1 \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /src/CrispEmbed/build /opt/crispembed/build
@@ -25,8 +24,12 @@ ENV PATH=/opt/crispembed/build:$PATH
 ENV CRISPEMBED_CACHE_DIR=/cache
 
 WORKDIR /app
-COPY webapp/ ./webapp/
+
+RUN pip install --upgrade pip
 COPY infra/requirements.txt .
-RUN pip3 install --no-cache-dir -r requirements.txt
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install --no-cache-dir -r requirements.txt
+
+COPY webapp/ ./webapp/
 
 CMD ["uvicorn", "webapp.api:app", "--host", "0.0.0.0", "--port", "8000"]
