@@ -11,3 +11,5 @@ python-multipart
 httpx
 opencv-python-headless
 scipy
+sqlalchemy
+asyncpg

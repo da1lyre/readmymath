@@ -49,3 +49,34 @@ async def get_average_score(user_id: str):
         )
         avg = result.scalar()
         return round(avg, 1) if avg else 0.0
+
+
+async def get_char_stats(user_id: str, char_code: str):
+    async with AsyncSessionLocal() as session:
+        count_res = await session.execute(
+            select(func.count(Attempt.id)).where(
+                Attempt.user_id == user_id,
+                Attempt.char_code == char_code
+            )
+        )
+        count = count_res.scalar() or 0
+
+        avg_res = await session.execute(
+            select(func.avg(Attempt.score)).where(
+                Attempt.user_id == user_id,
+                Attempt.char_code == char_code
+            )
+        )
+        avg = avg_res.scalar()
+
+        return {
+            "attempts": count,
+            "average": round(avg, 1) if avg else 0.0
+        }
+
+async def get_total_attempts(user_id: str):
+    async with AsyncSessionLocal() as session:
+        result = await session.execute(
+            select(func.count(Attempt.id)).where(Attempt.user_id == user_id)
+        )
+        return result.scalar() or 0

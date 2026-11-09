@@ -1,12 +1,12 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
-<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <title>WriteYourMath</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
 <style>
   body { margin: 0; padding: 0; background: #fff; font-family: sans-serif; height: 100%; overflow: hidden; }
   #app { display: flex; flex-direction: column; height: 100vh; padding: 12px; box-sizing: border-box; }
@@ -19,7 +19,6 @@
   .char-btn { display: inline-block; padding: 8px 16px; margin-right: 8px; border: 1px solid #ddd; border-radius: 8px; background: #fff; cursor: pointer; font-size: 20px; font-family: serif; }
   .char-btn.active { border-color: #1A1A1A; background: #eee; font-weight: bold; }
 
-  /* Контейнер для холста - теперь КВАДРАТНЫЙ и по центру */
   #canvasWrap {
     flex: 1;
     position: relative;
@@ -31,16 +30,28 @@
     max-height: 100%;
     margin: 0 auto;
     width: 100%;
-    max-width: 100%;
   }
 
-  /* Эталон */
+  #charStatsOverlay {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    background: rgba(255, 255, 255, 0.9);
+    padding: 6px 10px;
+    border-radius: 8px;
+    font-size: 12px;
+    color: #555;
+    z-index: 3;
+    display: none;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    border: 1px solid #eee;
+  }
+  #charStatsOverlay b { color: #1A1A1A; }
+
   #templateImg {
     position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
     object-fit: contain;
     opacity: 0.15;
     pointer-events: none;
@@ -48,16 +59,13 @@
     z-index: 1;
   }
 
-  /* Холст для рисования */
   canvas {
     display: block;
-    width: 100%;
-    height: 100%;
+    width: 100%; height: 100%;
     touch-action: none;
     cursor: crosshair;
     position: absolute;
-    top: 0;
-    left: 0;
+    top: 0; left: 0;
     z-index: 2;
     background: transparent;
   }
@@ -66,7 +74,14 @@
   button { flex: 1; padding: 12px; font-size: 15px; border-radius: 10px; border: none; cursor: pointer; font-weight: bold; }
   #clearBtn { background: #F2F2F2; color: #1A1A1A; }
   #sendBtn { background: #1A1A1A; color: #fff; }
+
   #result { margin-top: 10px; font-size: 16px; text-align: center; font-weight: bold; color: #1A1A1A; }
+
+  #profileContent { display: none; flex: 1; overflow-y: auto; text-align: center; }
+  .profile-card { background: #f8f9fa; border-radius: 12px; padding: 20px; margin-bottom: 20px; }
+  .profile-card h1 { margin: 0; font-size: 36px; color: #1A1A1A; }
+  .profile-card p { margin: 5px 0 0 0; color: #666; font-size: 14px; }
+  .history-item { display: flex; justify-content: space-between; align-items: center; padding: 12px; border-bottom: 1px solid #eee; font-size: 16px; }
 </style>
 </head>
 <body>
@@ -74,31 +89,54 @@
   <div class="tabs">
     <div class="tab active" id="tabFormula">Formula</div>
     <div class="tab" id="tabTrain">Practice</div>
+    <div class="tab" id="tabProfile">Profile</div>
   </div>
 
-  <div id="charPicker"></div>
+  <div id="drawContainer" style="display: flex; flex-direction: column; flex: 1;">
+    <div id="charPicker"></div>
 
-  <div id="canvasWrap">
-    <img id="templateImg" src="" alt="template">
-    <canvas id="canvas"></canvas>
+    <div id="canvasWrap">
+      <div id="charStatsOverlay">Loading stats...</div>
+      <img id="templateImg" src="" alt="template">
+      <canvas id="canvas"></canvas>
+    </div>
+
+    <div id="toolbar">
+      <button id="clearBtn">Clear</button>
+      <button id="sendBtn">Check</button>
+    </div>
+    <div id="result"></div>
   </div>
 
-  <div id="toolbar">
-    <button id="clearBtn">Clear</button>
-    <button id="sendBtn">Check</button>
+  <div id="profileContent">
+    <div class="profile-card">
+      <h1 id="totalAttempts">-</h1>
+      <p>Total attempts</p>
+    </div>
+    <div class="profile-card">
+      <h1 id="avgScore">-</h1>
+      <p>Average accuracy</p>
+    </div>
+
+    <h3 style="text-align: left; margin-bottom: 10px; color: #1A1A1A;">Recent attempts</h3>
+    <div id="historyList" style="text-align: left;"></div>
   </div>
-  <div id="result"></div>
 </div>
 
 <script>
   const tg = window.Telegram?.WebApp;
   if (tg) { tg.ready(); tg.expand(); }
 
+  const userId = (tg && tg.initDataUnsafe?.user) ? tg.initDataUnsafe.user.id.toString() : "test_user";
+
   const canvas = document.getElementById('canvas');
   const ctx = canvas.getContext('2d');
   const templateImg = document.getElementById('templateImg');
   const charPicker = document.getElementById('charPicker');
   const result = document.getElementById('result');
+  const drawContainer = document.getElementById('drawContainer');
+  const profileContent = document.getElementById('profileContent');
+  const charStatsOverlay = document.getElementById('charStatsOverlay');
 
   let mode = 'formula';
   let currentCharCode = null;
@@ -117,6 +155,7 @@
       currentChar = char;
       currentCharCode = char.codePointAt(0).toString(16).padStart(4, '0');
       updateTemplate();
+      loadCharStats();
       clearCanvas();
     };
     charPicker.appendChild(btn);
@@ -124,27 +163,55 @@
 
   document.getElementById('tabFormula').onclick = () => setMode('formula');
   document.getElementById('tabTrain').onclick = () => setMode('train');
+  document.getElementById('tabProfile').onclick = () => setMode('profile');
 
   function setMode(newMode) {
     mode = newMode;
     document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-    document.getElementById(mode === 'formula' ? 'tabFormula' : 'tabTrain').classList.add('active');
+    document.getElementById(mode === 'formula' ? 'tabFormula' : mode === 'train' ? 'tabTrain' : 'tabProfile').classList.add('active');
 
-    if (mode === 'train') {
-      charPicker.style.display = 'block';
-      templateImg.style.display = 'block';
-      if (!currentChar) document.querySelector('.char-btn').click();
+    if (mode === 'profile') {
+      drawContainer.style.display = 'none';
+      profileContent.style.display = 'block';
+      loadProfile();
     } else {
-      charPicker.style.display = 'none';
-      templateImg.style.display = 'none';
+      drawContainer.style.display = 'flex';
+      profileContent.style.display = 'none';
+
+      if (mode === 'train') {
+        charPicker.style.display = 'block';
+        templateImg.style.display = 'block';
+        charStatsOverlay.style.display = 'block';
+        if (!currentChar) document.querySelector('.char-btn').click();
+      } else {
+        charPicker.style.display = 'none';
+        templateImg.style.display = 'none';
+        charStatsOverlay.style.display = 'none';
+      }
+      clearCanvas();
+      resize();
     }
-    clearCanvas();
-    resize();
   }
 
   function updateTemplate() {
     if (currentCharCode) {
       templateImg.src = `/static/templates/u${currentCharCode}.png`;
+    }
+  }
+
+  async function loadCharStats() {
+    if (!currentCharCode) return;
+    charStatsOverlay.innerHTML = "Loading...";
+    try {
+      const resp = await fetch(`/char_stats?user_id=${userId}&char_code=${currentCharCode}`);
+      const json = await resp.json();
+      if (json.attempts > 0) {
+        charStatsOverlay.innerHTML = `<b>${currentChar}</b> | Avg: <b>${json.average}%</b> (${json.attempts} tries)`;
+      } else {
+        charStatsOverlay.innerHTML = `<b>${currentChar}</b> | No attempts yet`;
+      }
+    } catch (e) {
+      charStatsOverlay.innerHTML = `<b>${currentChar}</b> | Stats unavailable`;
     }
   }
 
@@ -154,7 +221,10 @@
     canvas.width = rect.width * dpr;
     canvas.height = rect.height * dpr;
     ctx.scale(dpr, dpr);
-    ctx.lineWidth = mode === 'train' ? 14 : 8;
+
+    // Утолщаем кисть в Practice до 14, в Formula оставляем 5
+    ctx.lineWidth = mode === 'train' ? 14 : 5;
+
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
     ctx.strokeStyle = '#1A1A1A';
@@ -195,25 +265,60 @@
       let url = '/recognize';
       if (mode === 'train') {
         if (!currentCharCode) return;
-        url = `/compare?char_code=${currentCharCode}`;
+        url = `/compare?char_code=${currentCharCode}&user_id=${userId}`;
       }
 
       const resp = await fetch(url, { method: 'POST', body: form });
       const json = await resp.json();
 
       if (mode === 'formula') {
+        result.innerHTML = `Recognized: <div id="katexOut" style="margin-top:10px; font-size: 24px;"></div>`;
         try {
-          katex.render(json.latex, result, { throwOnError: false });
+          katex.render(json.latex, document.getElementById('katexOut'), { throwOnError: false });
         } catch (e) {
-          result.innerHTML = `Recognized: <code>${json.latex}</code>`;
+          document.getElementById('katexOut').innerText = json.latex;
         }
       } else {
-        result.innerHTML = `Accuracy: ${json.score}%<br>${json.feedback}`;
+        // Убрали overlay-картинку, выводим только текст
+        result.innerHTML = `
+          <div style="margin-bottom: 4px;">Accuracy: <b>${json.score}%</b></div>
+          <div style="font-weight: normal; font-size: 14px;">${json.feedback}</div>
+        `;
+        loadCharStats();
       }
     } catch (err) {
       result.textContent = 'Error: ' + err.message;
     }
   };
+
+  async function loadProfile() {
+    document.getElementById('avgScore').textContent = "-";
+    document.getElementById('totalAttempts').textContent = "-";
+    document.getElementById('historyList').innerHTML = "<div style='text-align:center;color:#999;padding:20px'>Loading...</div>";
+
+    try {
+      const resp = await fetch(`/history?user_id=${userId}`);
+      const json = await resp.json();
+
+      document.getElementById('avgScore').textContent = `${json.average_score}%`;
+      document.getElementById('totalAttempts').textContent = json.total_attempts || json.attempts.length;
+
+      let html = "";
+      json.attempts.forEach(a => {
+        html += `
+          <div class="history-item">
+            <div style="font-size: 24px; font-family: serif; width: 40px;">${a.char}</div>
+            <div style="font-weight: bold; color: ${a.score >= 80 ? 'green' : a.score >= 50 ? 'orange' : 'red'};">${a.score}%</div>
+            <div style="color: #999; font-size: 14px;">${a.date}</div>
+          </div>
+        `;
+      });
+      document.getElementById('historyList').innerHTML = html || "<div style='text-align:center;color:#999;padding:20px'>No attempts yet.</div>";
+
+    } catch (e) {
+      document.getElementById('avgScore').textContent = "Error";
+    }
+  }
 
   window.addEventListener('resize', resize);
   resize();

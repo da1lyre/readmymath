@@ -1,4 +1,14 @@
 services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
   crispembed:
     build:
       context: ..
@@ -15,6 +25,7 @@ services:
       - CRISPEMBED_CACHE_DIR=/cache
     expose:
       - "8080"
+    restart: unless-stopped
 
   api:
     build:
@@ -28,8 +39,11 @@ services:
     environment:
       - CRISPEMBED_CACHE_DIR=/cache
       - CRISPEMBED_SERVER_URL=http://crispembed:8080
+      - DATABASE_URL=postgresql+asyncpg://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME}
     depends_on:
       - crispembed
+      - db
+    restart: unless-stopped
 
   ngrok:
     image: ngrok/ngrok:latest
@@ -55,3 +69,6 @@ services:
     depends_on:
       - api
     restart: unless-stopped
+
+volumes:
+  postgres_data:

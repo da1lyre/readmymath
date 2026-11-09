@@ -12,7 +12,7 @@ from fastapi import FastAPI, UploadFile, File, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from PIL import Image
-from webapp.db import init_db, save_attempt, get_history, get_average_score
+from webapp.db import init_db, save_attempt, get_history, get_average_score, get_char_stats, get_total_attempts
 
 app = FastAPI(title="WriteYourMath API")
 
@@ -207,14 +207,17 @@ async def compare(request: Request, file: UploadFile = File(...), char_code: str
         "overlay": overlay_base64
     }
 
+
 @app.get("/history")
 async def history(request: Request):
     user_id = request.query_params.get("user_id", "test_user")
     attempts = await get_history(user_id, limit=10)
     avg = await get_average_score(user_id)
 
+    total = await get_total_attempts(user_id)
     return {
         "average_score": avg,
+        "total_attempts": total,
         "attempts": [
             {
                 "char": chr(int(a.char_code, 16)) if a.char_code else "?",
@@ -223,3 +226,9 @@ async def history(request: Request):
             } for a in attempts
         ]
     }
+
+@app.get("/char_stats")
+async def char_stats(request: Request, char_code: str = ""):
+    user_id = request.query_params.get("user_id", "test_user")
+    stats = await get_char_stats(user_id, char_code)
+    return stats
