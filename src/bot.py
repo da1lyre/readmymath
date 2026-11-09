@@ -2,77 +2,81 @@ import asyncio
 import os
 import sys
 import logging
-
+from aiohttp import web
 from aiogram import Bot, Dispatcher
 from aiogram.filters import CommandStart
-from aiogram.types import (
-    Message,
-    InlineKeyboardMarkup,
-    InlineKeyboardButton,
-    WebAppInfo,
-)
+from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, WebAppInfo, BufferedInputFile
 from dotenv import load_dotenv
 
-# Настраиваем логирование
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
-
-# Загружаем .env (для локального запуска)
 load_dotenv()
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 WEBAPP_URL = os.getenv("WEBAPP_URL")
 
-# Проверка: если переменных нет, бот не запустится и скажет почему
-if not BOT_TOKEN:
-    logging.error("❌ BOT_TOKEN is missing in environment variables!")
-    sys.exit(1)
-
-if not WEBAPP_URL:
-    logging.error("❌ WEBAPP_URL is missing in environment variables!")
+if not BOT_TOKEN or not WEBAPP_URL:
     sys.exit(1)
 
 dp = Dispatcher()
+bot = Bot(token=BOT_TOKEN)
 
 
 def main_keyboard() -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup(
-        inline_keyboard=[
-            [
-                InlineKeyboardButton(
-                    text="Открыть WriteYourMath",
-                    web_app=WebAppInfo(url=WEBAPP_URL),
-                )
-            ]
-        ]
-    )
+    return InlineKeyboardMarkup(inline_keyboard=[[
+        InlineKeyboardButton(text="Открыть WriteYourMath", web_app=WebAppInfo(url=WEBAPP_URL))
+    ]])
 
 
 @dp.message(CommandStart())
 async def cmd_start(message: Message) -> None:
     text = (
-        "Привет! Это ReadMyMath — тренажёр математического почерка.\n\n"
-        "Как это работает:\n"
-        "1. Открываешь WriteYourMath — холст для рисования.\n"
-        "2. Пишешь формулу от руки или обводишь символы в режиме тренировки.\n"
-        "3. ReadMyMath распознаёт её в LaTeX или оценивает точность.\n\n"
+        "Привет! Это ReadMyMath.\n\n"
+        "1. Открываешь WriteYourMath.\n"
+        "2. Пишешь формулу от руки.\n"
+        "3. Экспортируешь её прямо в этот чат!\n\n"
         "Начни с простого: x + 1."
     )
     await message.answer(text, reply_markup=main_keyboard())
 
 
-async def main() -> None:
-    logging.info(f"🚀 Starting bot with URL: {WEBAPP_URL}")
-    bot = Bot(token=BOT_TOKEN)
+# --- HTTP СЕРВЕР ДЛЯ ПРИЕМА ФОТО ОТ API ---
+async def handle_send_photo(request: web.Request):
     try:
-        await dp.start_polling(bot)
+        data = await request.post()
+        user_id = data.get("user_id")
+        photo_file = data.get("photo")
+
+        if not user_id or not photo_file:
+            return web.json_response({"error": "Missing data"}, status=400)
+
+        photo_bytes = photo_file.file.read()
+
+        # Отправляем фото пользователю
+        await bot.send_photo(
+            chat_id=user_id,
+            photo=BufferedInputFile(photo_bytes, filename="formula.png"),
+            caption="Твоя формула 📐"
+        )
+        return web.json_response({"status": "ok"})
     except Exception as e:
-        logging.error(f"Bot crashed: {e}")
-    finally:
-        await bot.session.close()
+        logging.error(f"Error sending photo: {e}")
+        return web.json_response({"error": str(e)}, status=500)
+
+
+async def start_web_server():
+    app = web.Application()
+    app.router.add_post('/send_photo', handle_send_photo)
+    runner = web.AppRunner(app)
+    await runner.setup()
+    site = web.TCPSite(runner, '0.0.0.0', 8081)
+    await site.start()
+    logging.info("Web server for bot started on port 8081")
+
+
+async def main():
+    await start_web_server()
+    await dp.start_polling(bot)
 
 
 if __name__ == "__main__":
-    try:
-        asyncio.run(main())
-    except (KeyboardInterrupt, SystemExit):
-        logging.info("Bot stopped.")
+    asyncio.run(main())

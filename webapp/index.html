@@ -7,81 +7,65 @@
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <style>
   body { margin: 0; padding: 0; background: #fff; font-family: sans-serif; height: 100%; overflow: hidden; }
   #app { display: flex; flex-direction: column; height: 100vh; padding: 12px; box-sizing: border-box; }
 
-  .tabs { display: flex; gap: 8px; margin-bottom: 12px; }
-  .tab { flex: 1; padding: 10px; text-align: center; background: #f0f0f0; border-radius: 8px; cursor: pointer; font-weight: bold; color: #555; transition: 0.2s; }
+  .tabs { display: flex; gap: 4px; margin-bottom: 8px; }
+  .tab { flex: 1; padding: 10px 4px; text-align: center; background: #f0f0f0; border-radius: 8px; cursor: pointer; font-weight: bold; color: #555; font-size: 14px;}
   .tab.active { background: #1A1A1A; color: #fff; }
+
+  #difficultyPicker { display: none; gap: 4px; margin-bottom: 8px; }
+  .diff-btn { flex: 1; padding: 6px; text-align: center; border-radius: 6px; cursor: pointer; font-size: 12px; background: #eee; color: #555; border: 1px solid #ddd; }
+  .diff-btn.active { background: #333; color: #fff; border-color: #333; }
+
+  #endlessHud { display: none; justify-content: space-between; margin-bottom: 8px; font-weight: bold; font-size: 16px; color: #1A1A1A; }
+  #levelIndicator { font-size: 12px; color: #d32f2f; text-align: center; margin-bottom: 4px; display: none; font-weight: bold; }
 
   #charPicker { display: none; margin-bottom: 12px; overflow-x: auto; white-space: nowrap; padding-bottom: 5px; }
   .char-btn { display: inline-block; padding: 8px 16px; margin-right: 8px; border: 1px solid #ddd; border-radius: 8px; background: #fff; cursor: pointer; font-size: 20px; font-family: serif; }
   .char-btn.active { border-color: #1A1A1A; background: #eee; font-weight: bold; }
 
   #canvasWrap {
-    flex: 1;
-    position: relative;
-    border: 1.5px solid #E5E5E5;
-    border-radius: 12px;
-    overflow: hidden;
-    background: #fff;
-    aspect-ratio: 1 / 1;
-    max-height: 100%;
-    margin: 0 auto;
-    width: 100%;
+    flex: 1; position: relative; border: 1.5px solid #E5E5E5; border-radius: 12px; overflow: hidden; background: #fff;
+    aspect-ratio: 1 / 1; max-height: 100%; margin: 0 auto; width: 100%;
   }
 
   #charStatsOverlay {
-    position: absolute;
-    top: 10px;
-    left: 10px;
+    position: absolute; top: 10px; left: 10px;
     background: rgba(255, 255, 255, 0.9);
-    padding: 6px 10px;
-    border-radius: 8px;
-    font-size: 12px;
-    color: #555;
-    z-index: 3;
-    display: none;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    border: 1px solid #eee;
+    padding: 6px 10px; border-radius: 8px;
+    font-size: 12px; color: #555; z-index: 3;
+    display: none; border: 1px solid #eee;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
   }
   #charStatsOverlay b { color: #1A1A1A; }
 
-  #templateImg {
-    position: absolute;
-    top: 0; left: 0;
-    width: 100%; height: 100%;
-    object-fit: contain;
-    opacity: 0.15;
-    pointer-events: none;
-    display: none;
-    z-index: 1;
-  }
-
-  canvas {
-    display: block;
-    width: 100%; height: 100%;
-    touch-action: none;
-    cursor: crosshair;
-    position: absolute;
-    top: 0; left: 0;
-    z-index: 2;
-    background: transparent;
-  }
+  #templateImg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: contain; opacity: 0.2; pointer-events: none; display: none; z-index: 1; }
+  canvas { display: block; width: 100%; height: 100%; touch-action: none; cursor: crosshair; position: absolute; top: 0; left: 0; z-index: 2; background: transparent; }
 
   #toolbar { display: flex; gap: 8px; margin-top: 12px; }
   button { flex: 1; padding: 12px; font-size: 15px; border-radius: 10px; border: none; cursor: pointer; font-weight: bold; }
   #clearBtn { background: #F2F2F2; color: #1A1A1A; }
   #sendBtn { background: #1A1A1A; color: #fff; }
 
-  #result { margin-top: 10px; font-size: 16px; text-align: center; font-weight: bold; color: #1A1A1A; }
+  #result { margin-top: 10px; font-size: 16px; text-align: center; font-weight: bold; color: #1A1A1A; min-height: 24px; }
 
-  #profileContent { display: none; flex: 1; overflow-y: auto; text-align: center; }
-  .profile-card { background: #f8f9fa; border-radius: 12px; padding: 20px; margin-bottom: 20px; }
-  .profile-card h1 { margin: 0; font-size: 36px; color: #1A1A1A; }
-  .profile-card p { margin: 5px 0 0 0; color: #666; font-size: 14px; }
-  .history-item { display: flex; justify-content: space-between; align-items: center; padding: 12px; border-bottom: 1px solid #eee; font-size: 16px; }
+  /* Блок с кнопками после распознавания */
+  #actionButtons { display: none; gap: 8px; margin-top: 10px; }
+  .action-btn { flex: 1; padding: 12px; font-size: 15px; border-radius: 10px; border: none; cursor: pointer; font-weight: bold; color: white; }
+  #saveFormulaBtn { background: #4CAF50; }
+  #exportFormulaBtn { background: #d32f2f; }
+
+  #profileContent { display: none; flex: 1; overflow-y: auto; text-align: center; padding: 0 10px 20px 10px; }
+  .profile-card { background: #f8f9fa; border-radius: 12px; padding: 15px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
+  .profile-card h1 { margin: 0; font-size: 24px; color: #1A1A1A; }
+  .profile-card p { margin: 0; color: #666; font-size: 14px; }
+  .saved-item { background: #fff; border: 1px solid #eee; border-radius: 12px; padding: 15px; margin-bottom: 10px; text-align: center; }
+  .saved-item .formula { font-size: 20px; margin-bottom: 10px; min-height: 30px; }
+  .saved-item .date { font-size: 12px; color: #999; }
 </style>
 </head>
 <body>
@@ -93,6 +77,21 @@
   </div>
 
   <div id="drawContainer" style="display: flex; flex-direction: column; flex: 1;">
+
+    <div id="difficultyPicker">
+      <div class="diff-btn active" id="diffEasy" onclick="setDifficulty('easy')">Easy</div>
+      <div class="diff-btn" id="diffMedium" onclick="setDifficulty('medium')">Medium</div>
+      <div class="diff-btn" id="diffHard" onclick="setDifficulty('hard')">Hard</div>
+      <div class="diff-btn" id="diffImp" onclick="setDifficulty('impossible')">Imp</div>
+      <div class="diff-btn" id="diffEndless" onclick="setDifficulty('endless')" style="color: #d32f2f;">Endless</div>
+    </div>
+
+    <div id="endlessHud">
+      <div>Streak: <span id="currentStreak" style="color: green;">0</span></div>
+      <div>Best: <span id="bestStreak" style="color: #d32f2f;">0</span></div>
+    </div>
+    <div id="levelIndicator">Level 1 (Warmup)</div>
+
     <div id="charPicker"></div>
 
     <div id="canvasWrap">
@@ -105,21 +104,36 @@
       <button id="clearBtn">Clear</button>
       <button id="sendBtn">Check</button>
     </div>
+
+    <div id="actionButtons">
+      <button id="saveFormulaBtn" class="action-btn" onclick="saveCurrentFormula()">💾 Save</button>
+    <button id="exportFormulaBtn" class="action-btn" onclick="exportCurrentFormula()">📩 Send to Chat</button>
+    </div>
+
     <div id="result"></div>
   </div>
 
   <div id="profileContent">
     <div class="profile-card">
-      <h1 id="totalAttempts">-</h1>
-      <p>Total attempts</p>
-    </div>
-    <div class="profile-card">
-      <h1 id="avgScore">-</h1>
-      <p>Average accuracy</p>
+      <div style="text-align: left;">
+        <p>Average Accuracy</p>
+        <h1 id="avgScore">-</h1>
+      </div>
+      <div style="text-align: right;">
+        <p>Total Attempts</p>
+        <h1 id="totalAttempts">-</h1>
+      </div>
     </div>
 
-    <h3 style="text-align: left; margin-bottom: 10px; color: #1A1A1A;">Recent attempts</h3>
-    <div id="historyList" style="text-align: left;"></div>
+    <div class="profile-card" style="justify-content: center; background: #fff3f3; border: 1px solid #ffcdd2;">
+      <div style="text-align: center;">
+        <p style="color: #d32f2f;">Endless Record</p>
+        <h1 id="profileHighScore" style="color: #d32f2f;">-</h1>
+      </div>
+    </div>
+
+    <h3 style="text-align: left; margin-bottom: 10px; margin-top: 20px; color: #1A1A1A;">Saved Formulas</h3>
+    <div id="savedList"></div>
   </div>
 </div>
 
@@ -136,74 +150,144 @@
   const result = document.getElementById('result');
   const drawContainer = document.getElementById('drawContainer');
   const profileContent = document.getElementById('profileContent');
+  const difficultyPicker = document.getElementById('difficultyPicker');
+  const endlessHud = document.getElementById('endlessHud');
+  const levelIndicator = document.getElementById('levelIndicator');
   const charStatsOverlay = document.getElementById('charStatsOverlay');
+  const actionButtons = document.getElementById('actionButtons');
 
   let mode = 'formula';
+  let difficulty = 'easy';
   let currentCharCode = null;
   let currentChar = null;
+  let currentExpId = null;
   let drawing = false;
+  let lastAttemptId = null;
+  let lastLatex = null;
 
-  const charsToTrain = "0123456789abcdefghijklmnopqrstuvwxyzαβγδεζηθικλμνξοπρστυφχψω".split("");
+  let endlessStreak = 0;
+  let endlessBest = 0;
+  let endlessThreshold = 75;
 
-  charsToTrain.forEach(char => {
-    const btn = document.createElement('button');
-    btn.className = 'char-btn';
-    btn.textContent = char;
-    btn.onclick = () => {
-      document.querySelectorAll('.char-btn').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      currentChar = char;
-      currentCharCode = char.codePointAt(0).toString(16).padStart(4, '0');
-      updateTemplate();
-      loadCharStats();
-      clearCanvas();
-    };
-    charPicker.appendChild(btn);
-  });
+  const charsToTrain = "0123456789abcdefghijklmnopqrstuvwxyz".split("");
 
-  document.getElementById('tabFormula').onclick = () => setMode('formula');
-  document.getElementById('tabTrain').onclick = () => setMode('train');
-  document.getElementById('tabProfile').onclick = () => setMode('profile');
+  const endlessLevel1 = ["exp_1", "exp_2", "exp_3", "exp_4", "exp_9", "exp_10"];
+  const endlessLevel2 = ["exp_11", "exp_12", "exp_13", "exp_14", "exp_15", "exp_16"];
+  const endlessLevel3 = ["exp_5", "exp_6", "exp_7", "exp_8", "exp_17", "exp_22"];
+  const endlessLevel4 = ["imp_1", "imp_2", "imp_3", "imp_4", "exp_20", "exp_24"];
 
-  function setMode(newMode) {
-    mode = newMode;
-    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-    document.getElementById(mode === 'formula' ? 'tabFormula' : mode === 'train' ? 'tabTrain' : 'tabProfile').classList.add('active');
+  const mediumExps = ["exp_1", "exp_2", "exp_3", "exp_4", "exp_9", "exp_10", "exp_11", "exp_12", "exp_13", "exp_14", "exp_15", "exp_16"];
+  const hardExps = ["exp_5", "exp_6", "exp_7", "exp_8", "exp_17", "exp_18", "exp_19", "exp_20", "exp_21", "exp_22", "exp_23", "exp_24"];
+  const impExps = ["imp_1", "imp_2", "imp_3", "imp_4"];
 
-    if (mode === 'profile') {
-      drawContainer.style.display = 'none';
-      profileContent.style.display = 'block';
-      loadProfile();
+  function setDifficulty(level) {
+    difficulty = level;
+    document.querySelectorAll('.diff-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById(level === 'easy' ? 'diffEasy' : level === 'medium' ? 'diffMedium' : level === 'hard' ? 'diffHard' : level === 'impossible' ? 'diffImp' : 'diffEndless').classList.add('active');
+
+    charPicker.innerHTML = '';
+    currentCharCode = null;
+    currentChar = null;
+    currentExpId = null;
+    actionButtons.style.display = 'none';
+
+    if (difficulty === 'endless') {
+      charPicker.style.display = 'none';
+      endlessHud.style.display = 'flex';
+      levelIndicator.style.display = 'block';
+      charStatsOverlay.style.display = 'none';
+      endlessStreak = 0;
+      document.getElementById('currentStreak').textContent = "0";
+      loadBestStreak();
+      nextEndlessRound();
     } else {
-      drawContainer.style.display = 'flex';
-      profileContent.style.display = 'none';
+      charPicker.style.display = 'block';
+      endlessHud.style.display = 'none';
+      levelIndicator.style.display = 'none';
+      charStatsOverlay.style.display = 'block';
 
-      if (mode === 'train') {
-        charPicker.style.display = 'block';
-        templateImg.style.display = 'block';
-        charStatsOverlay.style.display = 'block';
-        if (!currentChar) document.querySelector('.char-btn').click();
+      if (difficulty === 'easy') {
+        charsToTrain.forEach(char => {
+          const btn = document.createElement('button');
+          btn.className = 'char-btn';
+          btn.textContent = char;
+          btn.onclick = () => selectItem(btn, char, null, null);
+          charPicker.appendChild(btn);
+        });
       } else {
-        charPicker.style.display = 'none';
-        templateImg.style.display = 'none';
-        charStatsOverlay.style.display = 'none';
+        const pool = difficulty === 'medium' ? mediumExps : difficulty === 'hard' ? hardExps : impExps;
+        pool.forEach(id => {
+          const btn = document.createElement('button');
+          btn.className = 'char-btn';
+          btn.textContent = id;
+          btn.onclick = () => selectItem(btn, null, id, id);
+          charPicker.appendChild(btn);
+        });
       }
-      clearCanvas();
-      resize();
+      if (charPicker.firstChild) charPicker.firstChild.click();
     }
+    clearCanvas();
   }
 
-  function updateTemplate() {
-    if (currentCharCode) {
-      templateImg.src = `/static/templates/u${currentCharCode}.png`;
+  function selectItem(btn, char, expId, displayText) {
+    document.querySelectorAll('.char-btn').forEach(b => b.classList.remove('active'));
+    if(btn) btn.classList.add('active');
+
+    if (char) {
+      currentCharCode = char.codePointAt(0).toString(16).padStart(4, '0');
+      currentChar = char;
+      currentExpId = null;
+    } else {
+      currentCharCode = null;
+      currentChar = displayText;
+      currentExpId = expId;
     }
+    updateTemplate();
+    loadCharStats();
+    clearCanvas();
+  }
+
+  function nextEndlessRound() {
+    let pool;
+    let levelText;
+
+    if (endlessStreak < 3) {
+      pool = endlessLevel1; levelText = "Level 1 (Warmup)";
+    } else if (endlessStreak < 6) {
+      pool = endlessLevel2; levelText = "Level 2 (Basic)";
+    } else if (endlessStreak < 10) {
+      pool = endlessLevel3; levelText = "Level 3 (Advanced)";
+    } else {
+      pool = endlessLevel4; levelText = "Level 4 (IMPOSSIBLE)";
+    }
+
+    levelIndicator.textContent = levelText;
+
+    const randomExp = pool[Math.floor(Math.random() * pool.length)];
+    currentExpId = randomExp;
+    currentCharCode = null;
+    updateTemplate();
+    clearCanvas();
+    result.innerHTML = `<span style="color: #666; font-size: 14px;">Need > ${endlessThreshold}% to survive</span>`;
+  }
+
+  async function loadBestStreak() {
+    try {
+      const resp = await fetch(`/highscore?user_id=${userId}`);
+      const json = await resp.json();
+      endlessBest = json.highscore;
+      document.getElementById('bestStreak').textContent = endlessBest;
+    } catch(e) {}
   }
 
   async function loadCharStats() {
-    if (!currentCharCode) return;
+    if (!currentCharCode && !currentExpId) return;
     charStatsOverlay.innerHTML = "Loading...";
+
+    const codeToQuery = currentExpId || currentCharCode;
+
     try {
-      const resp = await fetch(`/char_stats?user_id=${userId}&char_code=${currentCharCode}`);
+      const resp = await fetch(`/char_stats?user_id=${userId}&char_code=${codeToQuery}`);
       const json = await resp.json();
       if (json.attempts > 0) {
         charStatsOverlay.innerHTML = `<b>${currentChar}</b> | Avg: <b>${json.average}%</b> (${json.attempts} tries)`;
@@ -215,30 +299,89 @@
     }
   }
 
+  document.getElementById('tabFormula').onclick = () => setMode('formula');
+  document.getElementById('tabTrain').onclick = () => setMode('train');
+  document.getElementById('tabProfile').onclick = () => setMode('profile');
+
+  function setMode(newMode) {
+    mode = newMode;
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.getElementById(mode === 'formula' ? 'tabFormula' : mode === 'train' ? 'tabTrain' : 'tabProfile').classList.add('active');
+
+    actionButtons.style.display = 'none';
+
+    if (mode === 'profile') {
+      drawContainer.style.display = 'none';
+      profileContent.style.display = 'block';
+      loadProfileData();
+      loadSavedFormulas();
+    } else {
+      drawContainer.style.display = 'flex';
+      profileContent.style.display = 'none';
+
+      if (mode === 'train') {
+        difficultyPicker.style.display = 'flex';
+        templateImg.style.display = 'block';
+        if (!currentCharCode && !currentExpId) setDifficulty('easy');
+      } else {
+        difficultyPicker.style.display = 'none';
+        charPicker.style.display = 'none';
+        endlessHud.style.display = 'none';
+        levelIndicator.style.display = 'none';
+        charStatsOverlay.style.display = 'none';
+        templateImg.style.display = 'none';
+      }
+      clearCanvas();
+      resize();
+    }
+  }
+
+  function updateTemplate() {
+    if (currentCharCode) {
+      templateImg.src = `/static/templates/u${currentCharCode}.png`;
+    } else if (currentExpId) {
+      templateImg.src = `/static/templates/${currentExpId}.png`;
+    }
+  }
+
   function resize() {
     const rect = canvas.parentElement.getBoundingClientRect();
+
+    const tempCanvas = document.createElement('canvas');
+    tempCanvas.width = canvas.width;
+    tempCanvas.height = canvas.height;
+    if (canvas.width > 0 && canvas.height > 0) {
+        tempCanvas.getContext('2d').drawImage(canvas, 0, 0);
+    }
+
     const dpr = window.devicePixelRatio || 1;
     canvas.width = rect.width * dpr;
     canvas.height = rect.height * dpr;
-    ctx.scale(dpr, dpr);
 
-    // Утолщаем кисть в Practice до 14, в Formula оставляем 5
-    ctx.lineWidth = mode === 'train' ? 14 : 5;
-
+    ctx.lineWidth = (mode === 'train' ? 12 : 5) * dpr;
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
     ctx.strokeStyle = '#1A1A1A';
+
+    if (tempCanvas.width > 0 && tempCanvas.height > 0) {
+        ctx.drawImage(tempCanvas, 0, 0, canvas.width, canvas.height);
+    }
   }
 
   function clearCanvas() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    result.textContent = '';
+    if (difficulty !== 'endless') result.textContent = '';
+    lastAttemptId = null;
+    lastLatex = null;
+    actionButtons.style.display = 'none'; // Скрываем кнопки
   }
 
   function getPos(e) {
     const rect = canvas.getBoundingClientRect();
     const p = e.touches ? e.touches[0] : e;
-    return { x: p.clientX - rect.left, y: p.clientY - rect.top };
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    return { x: (p.clientX - rect.left) * scaleX, y: (p.clientY - rect.top) * scaleY };
   }
 
   function start(e) { e.preventDefault(); drawing = true; const {x,y} = getPos(e); ctx.beginPath(); ctx.moveTo(x, y); }
@@ -253,9 +396,15 @@
   canvas.addEventListener('touchmove', move, { passive: false });
   canvas.addEventListener('touchend', end);
 
+  const resizeObserver = new ResizeObserver(() => { resize(); });
+  resizeObserver.observe(canvas.parentElement);
+
   document.getElementById('clearBtn').onclick = clearCanvas;
+
   document.getElementById('sendBtn').onclick = async () => {
     result.textContent = 'Checking...';
+    actionButtons.style.display = 'none';
+
     const dataUrl = canvas.toDataURL('image/png');
     const blob = await (await fetch(dataUrl)).blob();
     const form = new FormData();
@@ -264,59 +413,183 @@
     try {
       let url = '/recognize';
       if (mode === 'train') {
-        if (!currentCharCode) return;
-        url = `/compare?char_code=${currentCharCode}&user_id=${userId}`;
+        if (difficulty === 'easy') url = `/compare?char_code=${currentCharCode}&user_id=${userId}`;
+        else url = `/compare_expression?exp_id=${currentExpId}&user_id=${userId}`;
+      } else {
+        url = `/recognize?user_id=${userId}`;
       }
 
       const resp = await fetch(url, { method: 'POST', body: form });
+
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({}));
+        throw new Error(err.detail || "Server error");
+      }
+
       const json = await resp.json();
 
       if (mode === 'formula') {
-        result.innerHTML = `Recognized: <div id="katexOut" style="margin-top:10px; font-size: 24px;"></div>`;
-        try {
-          katex.render(json.latex, document.getElementById('katexOut'), { throwOnError: false });
-        } catch (e) {
-          document.getElementById('katexOut').innerText = json.latex;
-        }
-      } else {
-        // Убрали overlay-картинку, выводим только текст
+        lastAttemptId = json.attempt_id;
+        lastLatex = json.latex;
         result.innerHTML = `
-          <div style="margin-bottom: 4px;">Accuracy: <b>${json.score}%</b></div>
-          <div style="font-weight: normal; font-size: 14px;">${json.feedback}</div>
+          <div style="margin-bottom: 10px;">Recognized:</div>
+          <div id="katexOut" style="font-size: 24px; margin-bottom: 10px; overflow-x: auto;"></div>
         `;
-        loadCharStats();
+        try { katex.render(json.latex, document.getElementById('katexOut'), { throwOnError: false }); }
+        catch (e) { document.getElementById('katexOut').innerText = json.latex; }
+
+        // Показываем кнопки
+        actionButtons.style.display = 'flex';
+
+      } else {
+        if (difficulty === 'endless') {
+          if (json.score >= endlessThreshold) {
+            endlessStreak++;
+            document.getElementById('currentStreak').textContent = endlessStreak;
+            result.innerHTML = `<span style="color: green;">Score: ${json.score}% - Passed!</span>`;
+            setTimeout(nextEndlessRound, 1500);
+          } else {
+            result.innerHTML = `<span style="color: red;">Score: ${json.score}% - Game Over! Streak: ${endlessStreak}</span>`;
+            if (endlessStreak > endlessBest) {
+              fetch('/highscore', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({user_id: userId, score: endlessStreak})
+              });
+              document.getElementById('bestStreak').textContent = endlessStreak;
+            }
+            setTimeout(() => {
+              endlessStreak = 0;
+              document.getElementById('currentStreak').textContent = "0";
+              nextEndlessRound();
+            }, 3000);
+          }
+        } else {
+          result.innerHTML = `<div>Accuracy: <b>${json.score}%</b></div><div style="font-size:14px;font-weight:normal;">${json.feedback}</div>`;
+          loadCharStats();
+        }
       }
     } catch (err) {
-      result.textContent = 'Error: ' + err.message;
+      result.innerHTML = `<span style="color: red;">${err.message}</span>`;
     }
   };
 
-  async function loadProfile() {
+  async function saveCurrentFormula() {
+    if (!lastAttemptId) return;
+    const btn = document.getElementById('saveFormulaBtn');
+    btn.innerText = "⏳ Saving...";
+    btn.disabled = true;
+    try {
+      await fetch('/save_formula', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ attempt_id: lastAttemptId })
+      });
+      btn.innerText = "✅ Saved!";
+      btn.style.background = "#2196F3";
+      setTimeout(() => { actionButtons.style.display = 'none'; }, 1500);
+    } catch(e) {
+      btn.innerText = "❌ Error";
+      btn.disabled = false;
+    }
+  }
+
+    async function exportCurrentFormula() {
+    if (!lastLatex) return;
+    const btn = document.getElementById('exportFormulaBtn');
+    btn.innerText = "⏳ Sending...";
+    btn.disabled = true;
+
+    try {
+      // 1. Рендерим формулу в красивый div
+      const container = document.createElement('div');
+      container.style.position = 'absolute';
+      container.style.left = '-9999px';
+      document.body.appendChild(container);
+
+      const div = document.createElement('div');
+      div.style.fontSize = '40px';
+      div.style.padding = '40px';
+      div.style.backgroundColor = 'white';
+      div.style.color = 'black';
+      div.style.width = '400px'; // Ширина картинки
+      div.style.textAlign = 'center';
+
+      try {
+        katex.render(lastLatex, div, { throwOnError: false });
+      } catch(e) {
+        div.innerText = lastLatex;
+      }
+
+      container.appendChild(div);
+
+      // 2. Делаем из div картинку (PNG)
+      const canvas = await html2canvas(div, { scale: 3, backgroundColor: '#ffffff' });
+      const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+
+      // 3. Отправляем в API
+      const form = new FormData();
+      form.append('user_id', userId);
+      form.append('photo', blob, 'formula.png');
+
+      const resp = await fetch('/send_to_chat', { method: 'POST', body: form });
+
+      if (!resp.ok) {
+         throw new Error("Failed to send");
+      }
+
+      document.body.removeChild(container);
+
+      btn.innerText = "✅ Sent to Chat!";
+      setTimeout(() => { btn.innerText = "📩 Send to Chat"; btn.disabled = false; }, 2000);
+
+    } catch(e) {
+      console.error(e);
+      btn.innerText = "❌ Error";
+      setTimeout(() => { btn.innerText = "📩 Send to Chat"; btn.disabled = false; }, 3000);
+    }
+  }
+
+  async function loadProfileData() {
     document.getElementById('avgScore').textContent = "-";
     document.getElementById('totalAttempts').textContent = "-";
-    document.getElementById('historyList').innerHTML = "<div style='text-align:center;color:#999;padding:20px'>Loading...</div>";
+    document.getElementById('profileHighScore').textContent = "-";
 
     try {
       const resp = await fetch(`/history?user_id=${userId}`);
       const json = await resp.json();
-
       document.getElementById('avgScore').textContent = `${json.average_score}%`;
       document.getElementById('totalAttempts').textContent = json.total_attempts || json.attempts.length;
 
+      const hsResp = await fetch(`/highscore?user_id=${userId}`);
+      const hsJson = await hsResp.json();
+      document.getElementById('profileHighScore').textContent = hsJson.highscore;
+    } catch (e) {}
+  }
+
+  async function loadSavedFormulas() {
+    document.getElementById('savedList').innerHTML = "Loading...";
+    try {
+      const resp = await fetch(`/saved_formulas?user_id=${userId}`);
+      const json = await resp.json();
+
       let html = "";
-      json.attempts.forEach(a => {
+      json.formulas.forEach(f => {
         html += `
-          <div class="history-item">
-            <div style="font-size: 24px; font-family: serif; width: 40px;">${a.char}</div>
-            <div style="font-weight: bold; color: ${a.score >= 80 ? 'green' : a.score >= 50 ? 'orange' : 'red'};">${a.score}%</div>
-            <div style="color: #999; font-size: 14px;">${a.date}</div>
+          <div class="saved-item">
+            <div class="formula" id="saved-${f.id}"></div>
+            <div class="date">${f.date}</div>
           </div>
         `;
       });
-      document.getElementById('historyList').innerHTML = html || "<div style='text-align:center;color:#999;padding:20px'>No attempts yet.</div>";
+      document.getElementById('savedList').innerHTML = html || "<div style='color:#999; padding:20px;'>No saved formulas yet.</div>";
 
-    } catch (e) {
-      document.getElementById('avgScore').textContent = "Error";
+      json.formulas.forEach(f => {
+        try { katex.render(f.latex, document.getElementById(`saved-${f.id}`), { throwOnError: false }); }
+        catch(e) { document.getElementById(`saved-${f.id}`).innerText = f.latex; }
+      });
+    } catch(e) {
+      document.getElementById('savedList').innerHTML = "Error loading formulas.";
     }
   }
 
