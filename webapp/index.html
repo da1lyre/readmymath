@@ -1,6 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <title>WriteYourMath</title>
@@ -200,7 +202,11 @@
       const json = await resp.json();
 
       if (mode === 'formula') {
-        result.innerHTML = `Recognized: <code>${json.latex || '...'}</code>`;
+        try {
+          katex.render(json.latex, result, { throwOnError: false });
+        } catch (e) {
+          result.innerHTML = `Recognized: <code>${json.latex}</code>`;
+        }
       } else {
         result.innerHTML = `Accuracy: ${json.score}%<br>${json.feedback}`;
       }

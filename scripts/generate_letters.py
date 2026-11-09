@@ -1,4 +1,3 @@
-import os
 from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
 
@@ -13,19 +12,14 @@ SYMBOLS = (
 
 SIZE = 512
 
-try:
-    font = ImageFont.truetype("arial.ttf", 350)
-except IOError:
-    try:
-        font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 350)
-    except IOError:
-        font = ImageFont.load_default()
+FONT_PATH = Path(__file__).resolve().parent.parent / "webapp" / "fonts" / "STIXTwoMath-Regular.ttf"
 
-print(f"Generation {len(SYMBOLS)} examples...")
+font = ImageFont.truetype(str(FONT_PATH), 350)
+
+print(f"Generating {len(SYMBOLS)} examples...")
 
 for char in SYMBOLS:
     filename = f"u{ord(char):04x}.png"
-
     img = Image.new("L", (SIZE, SIZE), 255)
     draw = ImageDraw.Draw(img)
 
@@ -38,3 +32,4 @@ for char in SYMBOLS:
     draw.text((x, y), char, fill=0, font=font)
     img.save(TEMPLATES_DIR / filename)
 
+print("Done")
