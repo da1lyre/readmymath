@@ -31,5 +31,6 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     pip install --no-cache-dir -r requirements.txt
 
 COPY webapp/ ./webapp/
+COPY src/ ./src/
 
 CMD ["uvicorn", "webapp.api:app", "--host", "0.0.0.0", "--port", "8000"]

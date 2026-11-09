@@ -9,3 +9,5 @@ matplotlib
 numpy
 python-multipart
 httpx
+opencv-python-headless
+scipy

@@ -1,21 +1,35 @@
 import asyncio
 import os
-from pathlib import Path
+import sys
+import logging
 
-from aiogram import Bot, Dispatcher, F
+from aiogram import Bot, Dispatcher
 from aiogram.filters import CommandStart
 from aiogram.types import (
-    Message, CallbackQuery,
-    InlineKeyboardMarkup, InlineKeyboardButton,
+    Message,
+    InlineKeyboardMarkup,
+    InlineKeyboardButton,
+    WebAppInfo,
 )
 from dotenv import load_dotenv
-from aiogram.types import WebAppInfo
 
-ENV_PATH = Path(__file__).resolve().parent.parent / "infra" / ".env"
-load_dotenv(dotenv_path=ENV_PATH)
+# Настраиваем логирование
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+
+# Загружаем .env (для локального запуска)
+load_dotenv()
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 WEBAPP_URL = os.getenv("WEBAPP_URL")
+
+# Проверка: если переменных нет, бот не запустится и скажет почему
+if not BOT_TOKEN:
+    logging.error("❌ BOT_TOKEN is missing in environment variables!")
+    sys.exit(1)
+
+if not WEBAPP_URL:
+    logging.error("❌ WEBAPP_URL is missing in environment variables!")
+    sys.exit(1)
 
 dp = Dispatcher()
 
@@ -39,23 +53,26 @@ async def cmd_start(message: Message) -> None:
         "Привет! Это ReadMyMath — тренажёр математического почерка.\n\n"
         "Как это работает:\n"
         "1. Открываешь WriteYourMath — холст для рисования.\n"
-        "2. Пишешь формулу от руки: x + 1, дробь, корень.\n"
-        "3. ReadMyMath распознаёт её в LaTeX и говорит, читается ли почерк.\n"
-        "4. Возвращаешься, прокачиваешь стрик.\n\n"
+        "2. Пишешь формулу от руки или обводишь символы в режиме тренировки.\n"
+        "3. ReadMyMath распознаёт её в LaTeX или оценивает точность.\n\n"
         "Начни с простого: x + 1."
     )
     await message.answer(text, reply_markup=main_keyboard())
 
 
-@dp.callback_query(F.data == "soon")
-async def on_soon(callback: CallbackQuery) -> None:
-    await callback.answer("Холст появится после Этапа 2", show_alert=True)
-
-
 async def main() -> None:
+    logging.info(f"🚀 Starting bot with URL: {WEBAPP_URL}")
     bot = Bot(token=BOT_TOKEN)
-    await dp.start_polling(bot)
+    try:
+        await dp.start_polling(bot)
+    except Exception as e:
+        logging.error(f"Bot crashed: {e}")
+    finally:
+        await bot.session.close()
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except (KeyboardInterrupt, SystemExit):
+        logging.info("Bot stopped.")

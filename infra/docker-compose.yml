@@ -43,3 +43,15 @@ services:
       NGROK_AUTHTOKEN: ${NGROK_AUTHTOKEN}
     depends_on:
       - api
+
+  bot:
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile
+    command: [ "python", "src/bot.py" ]
+    environment:
+      - BOT_TOKEN=${BOT_TOKEN}
+      - WEBAPP_URL=${WEBAPP_URL}
+    depends_on:
+      - api
+    restart: unless-stopped
