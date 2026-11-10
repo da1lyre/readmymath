@@ -13,7 +13,8 @@ from fastapi.staticfiles import StaticFiles
 from PIL import Image
 from webapp.db import (
     init_db, save_attempt, get_history, get_average_score,
-    get_char_stats, get_total_attempts, get_high_score, update_high_score, save_formula, get_saved_formulas, get_user_profile, get_or_create_user
+    get_char_stats, get_total_attempts, get_high_score, update_high_score, save_formula, get_saved_formulas,
+    get_leaderboard, get_user_rank, get_or_create_user
 )
 
 app = FastAPI(title="WriteYourMath API")
@@ -377,3 +378,27 @@ async def auth(request: Request):
 
     user = await get_or_create_user(user_id, username, first_name)
     return {"status": "ok", "user_id": user.user_id}
+
+
+@app.get("/leaderboard")
+async def leaderboard(request: Request):
+    user_id = request.query_params.get("user_id", "test_user")
+
+    top_players = await get_leaderboard(limit=10)
+
+    user_rank, user_score = await get_user_rank(user_id)
+
+    formatted_top = []
+    for idx, (first_name, username, score) in enumerate(top_players):
+        name = first_name or username or "Anonymous"
+        formatted_top.append({
+            "rank": idx + 1,
+            "name": name,
+            "score": score
+        })
+
+    return {
+        "top": formatted_top,
+        "user_rank": user_rank,
+        "user_score": user_score
+    }

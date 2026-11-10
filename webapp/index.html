@@ -97,7 +97,7 @@
     flex-shrink: 0;
   }
 
-  #profileContent { display: none; flex: 1; overflow-y: auto; padding-bottom: 20px; }
+  #profileContent { display: none; flex: 1; overflow-y: auto; padding-bottom: 20px;  }
   .profile-card { background: var(--card-bg); border-radius: 16px; padding: 14px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 8px rgba(0,0,0,0.03); }
   .profile-card h1 { margin: 0; font-size: 24px; font-weight: 700; }
   .profile-card p { margin: 0 0 4px 0; color: var(--text-muted); font-size: 12px; font-weight: 500; }
@@ -105,6 +105,51 @@
   .saved-item .formula { font-size: 20px; margin-bottom: 10px; min-height: 28px; }
   .saved-item .date { font-size: 11px; color: var(--text-muted); }
   .section-title { text-align: left; font-size: 16px; font-weight: 700; margin: 16px 0 10px 0; }
+
+  /* Стили специально для лидерборда */
+  .leaderboard-item {
+    background: var(--card-bg);
+    border-radius: 12px;
+    padding: 10px 14px;
+    margin-bottom: 6px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.03);
+    font-size: 15px;
+  }
+  .leaderboard-item.me {
+    background: #E8F5E9;
+    border: 1px solid #C8E6C9;
+  }
+  .leaderboard-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .leaderboard-rank {
+    font-weight: 700;
+    font-size: 16px;
+    width: 28px;
+    text-align: center;
+  }
+  .leaderboard-name {
+    font-weight: 600;
+    color: var(--text-main);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 160px;
+  }
+  .leaderboard-score {
+    font-weight: 700;
+    color: var(--text-muted);
+  }
+  .leaderboard-item.me .leaderboard-score,
+  .leaderboard-item.me .leaderboard-name {
+    color: var(--success);
+  }
+
 </style>
 </head>
 <body>
@@ -196,6 +241,9 @@
       <div style="font-size: 40px;">🏆</div>
     </div>
 
+    <div class="section-title" id="lblLeaderboard"></div>
+    <div id="leaderboardList"></div>
+
     <div class="section-title" id="lblSaved"></div>
     <div id="savedList"></div>
   </div>
@@ -212,6 +260,8 @@
       clear: "Clear", check: "Check", save: "💾 Save", send: "📩 Send to Chat",
       lblAvg: "Average Accuracy", lblTotal: "Total Attempts", lblRecord: "Endless Record", lblSaved: "Saved Formulas",
       lblStreak: "Streak", lblBest: "Best",
+      lblLeaderboard: "Leaderboard",
+      yourRank: "Your rank", notInTop: "No records yet.",
       diffEasy: "Easy", diffMedium: "Medium", diffHard: "Hard", diffImp: "Imp", diffEndless: "Endless",
       needSurvive: "Need > 75% to survive", passed: "Passed!", gameOver: "Game Over! Streak:", recognized: "Recognized:",
       noSaved: "No saved formulas yet.", loading: "Loading...", savedOk: "Saved!", sentOk: "Sent!", error: "Error",
@@ -227,6 +277,8 @@
       clear: "Очистить", check: "Проверить", save: "💾 Сохранить", send: "📩 В чат",
       lblAvg: "Средняя точность", lblTotal: "Всего попыток", lblRecord: "Рекорд Endless", lblSaved: "Сохранённые формулы",
       lblStreak: "Стрик", lblBest: "Рекорд",
+      lblLeaderboard: "Таблица лидеров",
+      yourRank: "Твоё место", notInTop: "Пока нет рекордов.",
       diffEasy: "Легко", diffMedium: "Средне", diffHard: "Сложно", diffImp: "Хард", diffEndless: "Бесконечно",
       needSurvive: "Нужно > 75% чтобы выжить", passed: "Пройдено!", gameOver: "Игра окончена! Стрик:", recognized: "Распознано:",
       noSaved: "Пока нет сохранённых формул.", loading: "Загрузка...", savedOk: "Сохранено!", sentOk: "Отправлено!", error: "Ошибка",
@@ -268,6 +320,7 @@
     document.getElementById('lblSaved').innerText = t.lblSaved;
     document.getElementById('lblStreak').innerText = t.lblStreak;
     document.getElementById('lblBest').innerText = t.lblBest;
+    document.getElementById('lblLeaderboard').innerText = t.lblLeaderboard;
 
     document.getElementById('diffEasy').innerText = t.diffEasy;
     document.getElementById('diffMedium').innerText = t.diffMedium;
@@ -511,6 +564,7 @@
       profileContent.style.display = 'block';
       loadProfileData();
       loadSavedFormulas();
+      loadLeaderboard(); // Загружаем лидерборд при открытии профиля
     } else {
       drawContainer.style.display = 'flex';
       profileContent.style.display = 'none';
@@ -752,6 +806,56 @@
       const hsJson = await hsResp.json();
       document.getElementById('profileHighScore').textContent = hsJson.highscore;
     } catch (e) {}
+  }
+
+  async function loadLeaderboard() {
+    document.getElementById('leaderboardList').innerHTML = `<div style='color: var(--text-muted); text-align: center; padding: 20px;'>${translations[lang].loading}</div>`;
+    try {
+      const resp = await fetch(`/leaderboard?user_id=${userId}`);
+      const json = await resp.json();
+
+      let html = "";
+
+      // Если юзер не в топе, но у него есть рекорд — показываем его место
+      if (json.user_score > 0 && json.user_rank > 10) {
+        html += `
+          <div class="leaderboard-item" style="background: #FFF3E0; border: 1px solid #FFE0B2;">
+            <div class="leaderboard-left">
+              <div class="leaderboard-rank" style="color: #F57C00;">#${json.user_rank}</div>
+              <div class="leaderboard-name" style="color: #F57C00;">${translations[lang].yourRank}</div>
+            </div>
+            <div class="leaderboard-score" style="color: #F57C00;">${json.user_score} pts</div>
+          </div>
+        `;
+      }
+
+      if (json.top.length === 0) {
+        html += `<div style='color: var(--text-muted); text-align: center; padding: 20px; font-size: 14px;'>${translations[lang].notInTop}</div>`;
+      } else {
+        json.top.forEach(p => {
+          const isMe = p.name === (tg.initDataUnsafe?.user?.first_name || tg.initDataUnsafe?.user?.username);
+
+          let medal = `#${p.rank}`;
+          if (p.rank === 1) medal = "🥇";
+          if (p.rank === 2) medal = "🥈";
+          if (p.rank === 3) medal = "🥉";
+
+          html += `
+            <div class="leaderboard-item ${isMe ? 'me' : ''}">
+              <div class="leaderboard-left">
+                <div class="leaderboard-rank">${medal}</div>
+                <div class="leaderboard-name">${p.name}</div>
+              </div>
+              <div class="leaderboard-score">${p.score} pts</div>
+            </div>
+          `;
+        });
+      }
+
+      document.getElementById('leaderboardList').innerHTML = html;
+    } catch(e) {
+      document.getElementById('leaderboardList').innerHTML = `<div style='color: var(--danger); text-align: center;'>${translations[lang].error}</div>`;
+    }
   }
 
   async function loadSavedFormulas() {

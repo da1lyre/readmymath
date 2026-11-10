@@ -156,3 +156,32 @@ async def get_total_attempts(user_id: str):
             select(func.count(Attempt.id)).where(Attempt.user_id == user_id)
         )
         return result.scalar() or 0
+
+
+async def get_leaderboard(limit: int = 10):
+    async with AsyncSessionLocal() as session:
+        # Джоиним пользователей и их рекорды
+        result = await session.execute(
+            select(User.first_name, User.username, HighScore.score)
+            .join(HighScore, User.user_id == HighScore.user_id)
+            .where(HighScore.score > 0)
+            .order_by(HighScore.score.desc())
+            .limit(limit)
+        )
+        # Возвращаем список кортежей (first_name, username, score)
+        return result.all()
+
+
+async def get_user_rank(user_id: str):
+    async with AsyncSessionLocal() as session:
+        result = await session.execute(select(HighScore.score).where(HighScore.user_id == user_id))
+        user_score = result.scalar() or 0
+
+        if user_score == 0:
+            return None, 0
+
+        rank_res = await session.execute(
+            select(func.count(HighScore.user_id)).where(HighScore.score > user_score)
+        )
+        rank = (rank_res.scalar() or 0) + 1
+        return rank, user_score
