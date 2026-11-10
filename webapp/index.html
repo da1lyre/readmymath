@@ -62,7 +62,6 @@
   .char-btn { display: inline-block; padding: 6px 12px; margin-right: 6px; border: 1px solid var(--border); border-radius: 10px; background: var(--card-bg); cursor: pointer; font-size: 16px; font-family: serif; color: var(--text-main); }
   .char-btn.active { border-color: var(--primary); background: var(--primary); color: var(--primary-text); }
 
-  /* Холст теперь имеет min-height: 0, чтобы правильно сжиматься в flex-контейнере */
   #canvasWrap {
     flex: 1; min-height: 0; position: relative; background: var(--card-bg); border-radius: 16px; overflow: hidden;
     box-shadow: 0 4px 12px rgba(0,0,0,0.04); border: 1px solid var(--border);
@@ -86,14 +85,13 @@
   #saveFormulaBtn { background: var(--success); }
   #exportFormulaBtn { background: var(--accent); }
 
-  /* Блок результата - делаем его несжимаемым и даем запас по высоте */
   #result {
     margin-top: 12px;
-    margin-bottom: 20px; /* Отступ снизу */
+    margin-bottom: 20px;
     font-size: 15px;
     text-align: center;
     font-weight: 600;
-    min-height: 80px; /* Чтобы блок не схлопывался, когда пустой */
+    min-height: 80px;
     flex-shrink: 0;
   }
 
@@ -148,6 +146,29 @@
   .leaderboard-item.me .leaderboard-score,
   .leaderboard-item.me .leaderboard-name {
     color: var(--success);
+  }
+
+  /* Стили для ачивок */
+  .achievement {
+    background: var(--card-bg);
+    cursor: pointer; /* <-- ДОБАВИТЬ */
+    border-radius: 12px;
+    padding: 8px 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.03);
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-main);
+  }
+  .achievement:active {
+    transform: scale(0.95); /* Эффект нажатия */
+  }
+  .achievement-icon { font-size: 20px; }
+  .achievement.locked {
+    opacity: 0.4;
+    filter: grayscale(100%);
   }
 
 </style>
@@ -241,6 +262,9 @@
       <div style="font-size: 40px;">🏆</div>
     </div>
 
+    <div class="section-title" id="lblAchievements"></div>
+    <div id="achievementsList" style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px;"></div>
+
     <div class="section-title" id="lblLeaderboard"></div>
     <div id="leaderboardList"></div>
 
@@ -265,9 +289,18 @@
       diffEasy: "Easy", diffMedium: "Medium", diffHard: "Hard", diffImp: "Imp", diffEndless: "Endless",
       needSurvive: "Need > 75% to survive", passed: "Passed!", gameOver: "Game Over! Streak:", recognized: "Recognized:",
       noSaved: "No saved formulas yet.", loading: "Loading...", savedOk: "Saved!", sentOk: "Sent!", error: "Error",
-      // Переводы для фидбека с бэкенда
       fbPerfect: "Perfect! 🎯", fbGreat: "Great! Very close.", fbGood: "Good, but there are deviations.", fbTooFar: "Too far, try again.",
-      emptyCanvas: "Canvas is empty", statsUnavailable: "Stats unavailable", noAttempts: "No attempts yet"
+      emptyCanvas: "Canvas is empty", statsUnavailable: "Stats unavailable", noAttempts: "No attempts yet",
+      lblAchievements: "Achievements",
+      ach_first_step: "First Step", ach_first_step_desc: "Make your first attempt",
+      ach_hard_worker: "Hard Worker", ach_hard_worker_desc: "Make 10 attempts",
+      ach_marathon: "Marathoner", ach_marathon_desc: "Make 50 attempts",
+      ach_sniper: "Sniper", ach_sniper_desc: "Average accuracy ≥ 80%",
+      ach_on_fire: "On Fire", ach_on_fire_desc: "Endless streak ≥ 3",
+      ach_endless_king: "Endless King", ach_endless_king_desc: "Endless streak ≥ 10",
+      ach_mathematician: "Mathematician", ach_mathematician_desc: "Save 1 formula",
+      ach_collector: "Collector", ach_collector_desc: "Save 5 formulas",
+      noAchievements: "No achievements yet. Start practicing!"
     },
     ru: {
       tabFormula: "Формула", tabTrain: "Тренировка", tabProfile: "Профиль",
@@ -283,7 +316,17 @@
       needSurvive: "Нужно > 75% чтобы выжить", passed: "Пройдено!", gameOver: "Игра окончена! Стрик:", recognized: "Распознано:",
       noSaved: "Пока нет сохранённых формул.", loading: "Загрузка...", savedOk: "Сохранено!", sentOk: "Отправлено!", error: "Ошибка",
       fbPerfect: "Идеально! 🎯", fbGreat: "Отлично! Очень близко.", fbGood: "Хорошо, но есть отклонения.", fbTooFar: "Слишком далеко, попробуй ещё.",
-      emptyCanvas: "Холст пуст", statsUnavailable: "Статистика недоступна", noAttempts: "Пока нет попыток"
+      emptyCanvas: "Холст пуст", statsUnavailable: "Статистика недоступна", noAttempts: "Пока нет попыток",
+      lblAchievements: "Достижения",
+      ach_first_step: "Первый шаг", ach_first_step_desc: "Сделай первую попытку",
+      ach_hard_worker: "Усердный", ach_hard_worker_desc: "Сделай 10 попыток",
+      ach_marathon: "Марафонец", ach_marathon_desc: "Сделай 50 попыток",
+      ach_sniper: "Снайпер", ach_sniper_desc: "Средняя точность ≥ 80%",
+      ach_on_fire: "В ударе", ach_on_fire_desc: "Рекорд в Endless ≥ 3",
+      ach_endless_king: "Король Endless", ach_endless_king_desc: "Рекорд в Endless ≥ 10",
+      ach_mathematician: "Математик", ach_mathematician_desc: "Сохрани 1 формулу",
+      ach_collector: "Коллекционер", ach_collector_desc: "Сохрани 5 формул",
+      noAchievements: "Пока нет достижений. Начни тренироваться!"
     }
   };
 
@@ -321,6 +364,7 @@
     document.getElementById('lblStreak').innerText = t.lblStreak;
     document.getElementById('lblBest').innerText = t.lblBest;
     document.getElementById('lblLeaderboard').innerText = t.lblLeaderboard;
+    document.getElementById('lblAchievements').innerText = t.lblAchievements;
 
     document.getElementById('diffEasy').innerText = t.diffEasy;
     document.getElementById('diffMedium').innerText = t.diffMedium;
@@ -331,6 +375,11 @@
     // Перерисовка выбранного элемента, чтобы обновить лейблы
     if (mode === 'train' && difficulty !== 'endless' && charPicker.firstChild) {
         charPicker.firstChild.click();
+    }
+    // Перерисовка ачивок при смене языка
+    if (mode === 'profile') {
+        loadAchievements();
+        loadLeaderboard();
     }
   }
 
@@ -564,7 +613,8 @@
       profileContent.style.display = 'block';
       loadProfileData();
       loadSavedFormulas();
-      loadLeaderboard(); // Загружаем лидерборд при открытии профиля
+      loadLeaderboard();
+      loadAchievements(); // Загружаем ачивки
     } else {
       drawContainer.style.display = 'flex';
       profileContent.style.display = 'none';
@@ -808,6 +858,62 @@
     } catch (e) {}
   }
 
+    async function loadAchievements() {
+    const container = document.getElementById('achievementsList');
+    container.innerHTML = `<div style='color: var(--text-muted); font-size: 14px;'>${translations[lang].loading}</div>`;
+
+    try {
+      const resp = await fetch(`/achievements?user_id=${userId}`);
+      const json = await resp.json();
+
+      const allAchievements = [
+        { id: "first_step", icon: "🥉" },
+        { id: "hard_worker", icon: "🥈" },
+        { id: "marathon", icon: "🥇" },
+        { id: "sniper", icon: "🎯" },
+        { id: "on_fire", icon: "🔥" },
+        { id: "endless_king", icon: "👑" },
+        { id: "mathematician", icon: "📐" },
+        { id: "collector", icon: "📚" }
+      ];
+
+      let html = "";
+      allAchievements.forEach(a => {
+        const isUnlocked = json.unlocked.includes(a.id);
+        const name = translations[lang][`ach_${a.id}`];
+        const desc = translations[lang][`ach_${a.id}_desc`];
+
+        // Экранируем кавычки для безопасной передачи в onclick
+        const safeName = name.replace(/'/g, "\\'");
+        const safeDesc = desc.replace(/'/g, "\\'");
+
+        html += `
+          <div class="achievement ${isUnlocked ? '' : 'locked'}" onclick="showAchievementInfo('${a.icon}', '${safeName}', '${safeDesc}', ${isUnlocked})">
+            <div class="achievement-icon">${a.icon}</div>
+            <div>${name}</div>
+          </div>
+        `;
+      });
+
+      container.innerHTML = html;
+
+      if (json.unlocked.length === 0) {
+        container.innerHTML += `<div style='color: var(--text-muted); font-size: 14px; width: 100%; text-align: center; margin-top: 10px;'>${translations[lang].noAchievements}</div>`;
+      }
+
+    } catch (e) {
+      container.innerHTML = `<div style='color: var(--danger); font-size: 14px;'>Error loading achievements</div>`;
+    }
+  }
+
+  // Функция для показа информации об ачивке
+  function showAchievementInfo(icon, name, desc, isUnlocked) {
+    const status = isUnlocked
+      ? (lang === 'ru' ? "✅ Получено" : "✅ Unlocked")
+      : (lang === 'ru' ? "🔒 Не получено" : "🔒 Locked");
+
+    alert(`${icon} ${name}\n\n${desc}\n\n${status}`);
+  }
   async function loadLeaderboard() {
     document.getElementById('leaderboardList').innerHTML = `<div style='color: var(--text-muted); text-align: center; padding: 20px;'>${translations[lang].loading}</div>`;
     try {

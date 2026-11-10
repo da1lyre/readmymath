@@ -402,3 +402,27 @@ async def leaderboard(request: Request):
         "user_rank": user_rank,
         "user_score": user_score
     }
+
+
+@app.get("/achievements")
+async def get_achievements(request: Request):
+    user_id = request.query_params.get("user_id", "test_user")
+
+    total_attempts = await get_total_attempts(user_id)
+    avg_score = await get_average_score(user_id)
+    high_score = await get_high_score(user_id)
+    saved_formulas = await get_saved_formulas(user_id)
+    saved_count = len(saved_formulas) if saved_formulas else 0
+
+    unlocked = []
+
+    if total_attempts >= 1: unlocked.append("first_step")
+    if total_attempts >= 10: unlocked.append("hard_worker")
+    if total_attempts >= 50: unlocked.append("marathon")
+    if total_attempts >= 5 and avg_score >= 80: unlocked.append("sniper")
+    if high_score >= 3: unlocked.append("on_fire")
+    if high_score >= 10: unlocked.append("endless_king")
+    if saved_count >= 1: unlocked.append("mathematician")
+    if saved_count >= 5: unlocked.append("collector")
+
+    return {"unlocked": unlocked}
