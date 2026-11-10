@@ -12,6 +12,16 @@ if not DATABASE_URL:
 engine = create_async_engine(DATABASE_URL, echo=False)
 Base = declarative_base()
 
+
+class User(Base):
+    __tablename__ = "users"
+    user_id = Column(String, primary_key=True)  # Telegram ID
+    username = Column(String, nullable=True)
+    first_name = Column(String, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    last_seen = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
 class Attempt(Base):
     __tablename__ = "attempts"
     id = Column(Integer, primary_key=True, autoincrement=True)
@@ -22,23 +32,52 @@ class Attempt(Base):
     is_saved = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.utcnow)
 
+
 class HighScore(Base):
     __tablename__ = "high_scores"
     user_id = Column(String, primary_key=True)
     score = Column(Integer, default=0)
 
+
 AsyncSessionLocal = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+
 
 async def init_db():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
+
+async def get_or_create_user(user_id: str, username: str = None, first_name: str = None):
+    async with AsyncSessionLocal() as session:
+        result = await session.execute(select(User).where(User.user_id == user_id))
+        user = result.scalar_one_or_none()
+
+        if not user:
+            user = User(user_id=user_id, username=username, first_name=first_name)
+            session.add(user)
+        else:
+            # Обновляем данные, если они изменились
+            if username: user.username = username
+            if first_name: user.first_name = first_name
+
+        await session.commit()
+        return user
+
+
+async def get_user_profile(user_id: str):
+    async with AsyncSessionLocal() as session:
+        result = await session.execute(select(User).where(User.user_id == user_id))
+        return result.scalar_one_or_none()
+
+
+# --- ОСТАЛЬНЫЕ ФУНКЦИИ (без изменений) ---
 async def save_attempt(user_id: str, char_code: str, latex_str: str, score: float):
     async with AsyncSessionLocal() as session:
         attempt = Attempt(user_id=user_id, char_code=char_code, latex_str=latex_str, score=score)
         session.add(attempt)
         await session.commit()
         return attempt.id
+
 
 async def save_formula(formula_id: int):
     async with AsyncSessionLocal() as session:
@@ -48,12 +87,15 @@ async def save_formula(formula_id: int):
             attempt.is_saved = True
             await session.commit()
 
+
 async def get_saved_formulas(user_id: str):
     async with AsyncSessionLocal() as session:
         result = await session.execute(
-            select(Attempt).where(Attempt.user_id == user_id, Attempt.is_saved == True).order_by(Attempt.created_at.desc())
+            select(Attempt).where(Attempt.user_id == user_id, Attempt.is_saved == True).order_by(
+                Attempt.created_at.desc())
         )
         return result.scalars().all()
+
 
 async def get_history(user_id: str, limit: int = 10):
     async with AsyncSessionLocal() as session:
@@ -65,6 +107,7 @@ async def get_history(user_id: str, limit: int = 10):
         )
         return result.scalars().all()
 
+
 async def get_average_score(user_id: str):
     async with AsyncSessionLocal() as session:
         result = await session.execute(
@@ -72,6 +115,7 @@ async def get_average_score(user_id: str):
         )
         avg = result.scalar()
         return round(avg, 1) if avg else 0.0
+
 
 async def get_char_stats(user_id: str, char_code: str):
     async with AsyncSessionLocal() as session:
@@ -85,11 +129,13 @@ async def get_char_stats(user_id: str, char_code: str):
         avg = avg_res.scalar()
         return {"attempts": count, "average": round(avg, 1) if avg else 0.0}
 
+
 async def get_high_score(user_id: str) -> int:
     async with AsyncSessionLocal() as session:
         result = await session.execute(select(HighScore).where(HighScore.user_id == user_id))
         hs = result.scalar_one_or_none()
         return hs.score if hs else 0
+
 
 async def update_high_score(user_id: str, new_score: int) -> int:
     async with AsyncSessionLocal() as session:
@@ -102,6 +148,7 @@ async def update_high_score(user_id: str, new_score: int) -> int:
             hs.score = new_score
         await session.commit()
         return hs.score
+
 
 async def get_total_attempts(user_id: str):
     async with AsyncSessionLocal() as session:

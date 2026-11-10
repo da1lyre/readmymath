@@ -13,7 +13,7 @@ from fastapi.staticfiles import StaticFiles
 from PIL import Image
 from webapp.db import (
     init_db, save_attempt, get_history, get_average_score,
-    get_char_stats, get_total_attempts, get_high_score, update_high_score, save_formula, get_saved_formulas
+    get_char_stats, get_total_attempts, get_high_score, update_high_score, save_formula, get_saved_formulas, get_user_profile, get_or_create_user
 )
 
 app = FastAPI(title="WriteYourMath API")
@@ -34,16 +34,31 @@ SHARED_DIR.mkdir(parents=True, exist_ok=True)
 TEMPLATES_DIR = WEB_DIR / "templates"
 
 EXPRESSION_LATEX = {
-    "exp_1": "x+1", "exp_2": "2a", "exp_3": "y=5", "exp_4": "a-b",
-    "exp_9": "3x", "exp_10": "b=2", "exp_11": "x+y", "exp_12": "m-n",
-    "exp_13": "5-2", "exp_14": "4c", "exp_15": "p=q", "exp_16": "7+8",
-    "exp_5": "\\frac{a}{b}", "exp_6": "x^2", "exp_7": "\\sqrt{x}", "exp_8": "2x+3",
-    "exp_17": "y^3", "exp_18": "\\frac{1}{x}", "exp_19": "\\sqrt{y}", "exp_20": "a^2+b^2",
-    "exp_21": "\\frac{x}{2}", "exp_22": "3x-1", "exp_23": "\\sqrt{x+1}", "exp_24": "x^2=4",
-    "imp_1": "\\int_0^1 x^2 \\, dx", "imp_2": "\\lim_{x \\to 0} \\frac{\\sin x}{x}",
-    "imp_3": "\\sum_{i=1}^n i^2", "imp_4": "e^{i\\pi} + 1 = 0"
+    # Medium
+    "exp_1": "x+1", "exp_2": "2a", "exp_3": "y=5", "exp_4": "a-b", "exp_5": "3x", "exp_6": "b=2",
+    "exp_7": "x+y", "exp_8": "m-n", "exp_9": "5-2", "exp_10": "4c", "exp_11": "p=q", "exp_12": "7+8",
+    "exp_13": "a+b", "exp_14": "x=3", "exp_15": "2y", "exp_16": "4+5", "exp_17": "n-1", "exp_18": "3+a",
+    "exp_19": "y=7", "exp_20": "c-d", "exp_21": "8-4", "exp_22": "x-2", "exp_23": "5y", "exp_24": "b+3",
+    "exp_25": "z=1", "exp_26": "6+2", "exp_27": "a=4", "exp_28": "m+2", "exp_29": "9-3", "exp_30": "2x+1",
+    # Hard
+    "exp_31": "\\frac{a}{b}", "exp_32": "x^2", "exp_33": "\\sqrt{x}", "exp_34": "2x+3", "exp_35": "y^3",
+    "exp_36": "\\frac{1}{x}", "exp_37": "\\sqrt{y}", "exp_38": "a^2+b^2", "exp_39": "\\frac{x}{2}", "exp_40": "3x-1",
+    "exp_41": "\\sqrt{x+1}", "exp_42": "x^2=4", "exp_43": "\\frac{2}{3}", "exp_44": "z^2", "exp_45": "\\sqrt{z}",
+    "exp_46": "4x-2", "exp_47": "\\frac{a+c}{b}", "exp_48": "x^3", "exp_49": "\\sqrt{x-1}", "exp_50": "x^2+2x",
+    "exp_51": "\\frac{3}{x}", "exp_52": "2x^2", "exp_53": "y^2-1", "exp_54": "\\sqrt{2x}", "exp_55": "5x+2",
+    "exp_56": "\\frac{x+1}{2}", "exp_57": "a^3", "exp_58": "\\sqrt{x^2}", "exp_59": "4x^2", "exp_60": "\\frac{1}{x^2}",
+    "exp_61": "x=2^3", "exp_62": "\\sqrt{4}", "exp_63": "7y-3", "exp_64": "\\frac{y}{4}", "exp_65": "3x^2-5",
+    "exp_66": "\\sqrt{x+2}", "exp_67": "x^2-9", "exp_68": "\\frac{x}{y}", "exp_69": "2x+2y", "exp_70": "x^3-1",
+    # Imp
+    "exp_71": "\\int_0^1 x^2 \\, dx", "exp_72": "\\lim_{x \\to 0} \\frac{\\sin x}{x}", "exp_73": "\\sum_{i=1}^n i^2", "exp_74": "e^{i\\pi} + 1 = 0",
+    "exp_75": "\\int x \\, dx", "exp_76": "\\lim_{x \\to \\infty} \\frac{1}{x}", "exp_77": "\\sum_{k=1}^n k", "exp_78": "\\frac{d}{dx} x^2",
+    "exp_79": "\\int_0^\\pi \\sin x \\, dx", "exp_80": "\\lim_{x \\to 1} \\frac{x^2-1}{x-1}", "exp_81": "\\sum_{n=1}^\\infty \\frac{1}{n^2}", "exp_82": "\\frac{d}{dx} e^x",
+    "exp_83": "\\int \\frac{1}{x} \\, dx", "exp_84": "\\lim_{h \\to 0} \\frac{f(x+h)-f(x)}{h}", "exp_85": "\\prod_{i=1}^n i", "exp_86": "i^2 = -1",
+    "exp_87": "\\int_0^1 e^x \\, dx", "exp_88": "\\lim_{x \\to 0} \\frac{1-\\cos x}{x^2}", "exp_89": "\\sum_{i=0}^n \\binom{n}{i}", "exp_90": "\\frac{d}{dx} \\ln x",
+    "exp_91": "\\int x e^x \\, dx", "exp_92": "\\lim_{n \\to \\infty} (1+\\frac{1}{n})^n", "exp_93": "\\sum_{i=1}^n \\frac{1}{i}", "exp_94": "\\frac{\\partial f}{\\partial x}",
+    "exp_95": "\\int_0^\\infty e^{-x} \\, dx", "exp_96": "\\lim_{x \\to 0} \\frac{\\tan x}{x}", "exp_97": "\\sum_{i=1}^n i^3", "exp_98": "\\nabla \\cdot \\vec{E}",
+    "exp_99": "\\int \\sin x \\, dx", "exp_100": "\\lim_{x \\to \\infty} e^{-x}"
 }
-
 
 @app.on_event("startup")
 async def startup():
@@ -348,3 +363,17 @@ async def send_to_chat(
         return {"status": "ok"}
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"Bot error: {e}")
+
+
+@app.post("/auth")
+async def auth(request: Request):
+    data = await request.json()
+    user_id = data.get("user_id")
+    username = data.get("username")
+    first_name = data.get("first_name")
+
+    if not user_id:
+        raise HTTPException(status_code=400, detail="user_id is required")
+
+    user = await get_or_create_user(user_id, username, first_name)
+    return {"status": "ok", "user_id": user.user_id}

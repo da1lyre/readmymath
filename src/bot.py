@@ -30,16 +30,13 @@ def main_keyboard() -> InlineKeyboardMarkup:
 @dp.message(CommandStart())
 async def cmd_start(message: Message) -> None:
     text = (
-        "Привет! Это ReadMyMath.\n\n"
-        "1. Открываешь WriteYourMath.\n"
-        "2. Пишешь формулу от руки.\n"
-        "3. Экспортируешь её прямо в этот чат!\n\n"
-        "Начни с простого: x + 1."
+        "👋 Добро пожаловать в ReadMyMath!\n\n"
+        "Это твой личный тренажёр математического почерка. "
+        "Рисуй формулы, тренируй написание символов и получай мгновенную обратную связь.\n\n"
+        "👇 Нажми кнопку ниже, чтобы начать."
     )
     await message.answer(text, reply_markup=main_keyboard())
 
-
-# --- HTTP СЕРВЕР ДЛЯ ПРИЕМА ФОТО ОТ API ---
 async def handle_send_photo(request: web.Request):
     try:
         data = await request.post()
@@ -51,11 +48,10 @@ async def handle_send_photo(request: web.Request):
 
         photo_bytes = photo_file.file.read()
 
-        # Отправляем фото пользователю
         await bot.send_photo(
             chat_id=user_id,
             photo=BufferedInputFile(photo_bytes, filename="formula.png"),
-            caption="Твоя формула 📐"
+            caption="Your formule 📐"
         )
         return web.json_response({"status": "ok"})
     except Exception as e:

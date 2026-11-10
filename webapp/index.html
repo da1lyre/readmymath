@@ -2,112 +2,175 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0">
 <title>WriteYourMath</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <style>
-  body { margin: 0; padding: 0; background: #fff; font-family: sans-serif; height: 100%; overflow: hidden; }
-  #app { display: flex; flex-direction: column; height: 100vh; padding: 12px; box-sizing: border-box; }
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
-  .tabs { display: flex; gap: 4px; margin-bottom: 8px; }
-  .tab { flex: 1; padding: 10px 4px; text-align: center; background: #f0f0f0; border-radius: 8px; cursor: pointer; font-weight: bold; color: #555; font-size: 14px;}
-  .tab.active { background: #1A1A1A; color: #fff; }
+  :root {
+    --bg-color: #F7F8FA;
+    --text-main: #1A1A1A;
+    --text-muted: #8E8E93;
+    --primary: #1A1A1A;
+    --primary-text: #FFFFFF;
+    --accent: #007AFF;
+    --success: #34C759;
+    --danger: #FF3B30;
+    --border: #E5E5EA;
+    --card-bg: #FFFFFF;
+  }
 
-  #difficultyPicker { display: none; gap: 4px; margin-bottom: 8px; }
-  .diff-btn { flex: 1; padding: 6px; text-align: center; border-radius: 6px; cursor: pointer; font-size: 12px; background: #eee; color: #555; border: 1px solid #ddd; }
-  .diff-btn.active { background: #333; color: #fff; border-color: #333; }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body { margin: 0; padding: 0; background: var(--bg-color); font-family: 'Inter', -apple-system, sans-serif; color: var(--text-main); height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
 
-  #endlessHud { display: none; justify-content: space-between; margin-bottom: 8px; font-weight: bold; font-size: 16px; color: #1A1A1A; }
-  #levelIndicator { font-size: 12px; color: #d32f2f; text-align: center; margin-bottom: 4px; display: none; font-weight: bold; }
+  /* --- ОНБОРДИНГ --- */
+  #onboarding { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: var(--bg-color); z-index: 100; display: flex; flex-direction: column; padding: 24px; transition: opacity 0.3s ease; }
+  .onb-slide { flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; display: none; }
+  .onb-slide.active { display: flex; animation: fadeIn 0.4s ease; }
+  .onb-icon { font-size: 80px; margin-bottom: 24px; }
+  .onb-title { font-size: 26px; font-weight: 700; margin-bottom: 12px; }
+  .onb-text { font-size: 16px; color: var(--text-muted); line-height: 1.5; max-width: 280px; }
+  .onb-dots { display: flex; justify-content: center; gap: 8px; margin-bottom: 24px; }
+  .onb-dot { width: 8px; height: 8px; border-radius: 50%; background: #D1D1D6; transition: 0.2s; }
+  .onb-dot.active { background: var(--text-main); width: 20px; border-radius: 4px; }
+  .onb-btn { width: 100%; padding: 16px; font-size: 17px; font-weight: 600; border-radius: 14px; background: var(--primary); color: var(--primary-text); border: none; cursor: pointer; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
-  #charPicker { display: none; margin-bottom: 12px; overflow-x: auto; white-space: nowrap; padding-bottom: 5px; }
-  .char-btn { display: inline-block; padding: 8px 16px; margin-right: 8px; border: 1px solid #ddd; border-radius: 8px; background: #fff; cursor: pointer; font-size: 20px; font-family: serif; }
-  .char-btn.active { border-color: #1A1A1A; background: #eee; font-weight: bold; }
+  /* --- ИНТЕРФЕЙС --- */
+  #app { display: flex; flex-direction: column; height: 100vh; padding: 10px; }
 
+  .top-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; flex-shrink: 0; }
+  .tabs { display: flex; gap: 4px; background: #EFEFF4; padding: 4px; border-radius: 12px; flex: 1; margin-right: 8px; }
+  .tab { flex: 1; padding: 8px 2px; text-align: center; border-radius: 9px; cursor: pointer; font-weight: 600; color: var(--text-muted); font-size: 13px; transition: 0.2s; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .tab.active { background: var(--card-bg); color: var(--text-main); box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+
+  #langSwitch { background: var(--card-bg); border: 1px solid var(--border); padding: 8px 10px; border-radius: 10px; font-weight: 600; font-size: 13px; cursor: pointer; color: var(--text-main); flex-shrink: 0; }
+
+  #difficultyPicker { display: none; gap: 4px; margin-bottom: 10px; overflow-x: auto; flex-shrink: 0; }
+  .diff-btn { padding: 6px 10px; border-radius: 10px; cursor: pointer; font-size: 12px; font-weight: 500; background: var(--card-bg); color: var(--text-muted); border: 1px solid var(--border); white-space: nowrap; }
+  .diff-btn.active { background: var(--primary); color: var(--primary-text); border-color: var(--primary); }
+
+  #endlessHud { display: none; justify-content: space-between; margin-bottom: 8px; font-weight: 600; font-size: 13px; padding: 0 4px; flex-shrink: 0; }
+  #levelIndicator { font-size: 11px; color: var(--danger); text-align: center; margin-bottom: 6px; display: none; font-weight: 600; text-transform: uppercase; flex-shrink: 0; }
+
+  #charPicker { display: none; margin-bottom: 10px; overflow-x: auto; white-space: nowrap; padding-bottom: 4px; -ms-overflow-style: none; scrollbar-width: none; flex-shrink: 0; }
+  #charPicker::-webkit-scrollbar { display: none; }
+  .char-btn { display: inline-block; padding: 6px 12px; margin-right: 6px; border: 1px solid var(--border); border-radius: 10px; background: var(--card-bg); cursor: pointer; font-size: 16px; font-family: serif; color: var(--text-main); }
+  .char-btn.active { border-color: var(--primary); background: var(--primary); color: var(--primary-text); }
+
+  /* Холст теперь имеет min-height: 0, чтобы правильно сжиматься в flex-контейнере */
   #canvasWrap {
-    flex: 1; position: relative; border: 1.5px solid #E5E5E5; border-radius: 12px; overflow: hidden; background: #fff;
-    aspect-ratio: 1 / 1; max-height: 100%; margin: 0 auto; width: 100%;
+    flex: 1; min-height: 0; position: relative; background: var(--card-bg); border-radius: 16px; overflow: hidden;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.04); border: 1px solid var(--border);
+    aspect-ratio: 1/1; max-height: 100%; margin: 0 auto; width: 100%;
   }
 
-  #charStatsOverlay {
-    position: absolute; top: 10px; left: 10px;
-    background: rgba(255, 255, 255, 0.9);
-    padding: 6px 10px; border-radius: 8px;
-    font-size: 12px; color: #555; z-index: 3;
-    display: none; border: 1px solid #eee;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-  }
-  #charStatsOverlay b { color: #1A1A1A; }
+  #charStatsOverlay { position: absolute; top: 10px; left: 10px; background: rgba(255, 255, 255, 0.95); padding: 4px 8px; border-radius: 6px; font-size: 10px; color: var(--text-muted); z-index: 3; display: none; box-shadow: 0 2px 6px rgba(0,0,0,0.05); font-weight: 500; }
+  #charStatsOverlay b { color: var(--text-main); font-size: 12px; }
 
-  #templateImg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: contain; opacity: 0.2; pointer-events: none; display: none; z-index: 1; }
+  #templateImg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: contain; opacity: 0.15; pointer-events: none; display: none; z-index: 1; }
   canvas { display: block; width: 100%; height: 100%; touch-action: none; cursor: crosshair; position: absolute; top: 0; left: 0; z-index: 2; background: transparent; }
 
-  #toolbar { display: flex; gap: 8px; margin-top: 12px; }
-  button { flex: 1; padding: 12px; font-size: 15px; border-radius: 10px; border: none; cursor: pointer; font-weight: bold; }
-  #clearBtn { background: #F2F2F2; color: #1A1A1A; }
-  #sendBtn { background: #1A1A1A; color: #fff; }
+  #toolbar { display: flex; gap: 8px; margin-top: 12px; flex-shrink: 0; }
+  button { padding: 12px; font-size: 15px; border-radius: 12px; border: none; cursor: pointer; font-weight: 600; font-family: inherit; transition: opacity 0.2s; }
+  button:active { opacity: 0.7; }
+  #clearBtn { flex: 1; background: #EFEFF4; color: var(--text-main); }
+  #sendBtn { flex: 2; background: var(--primary); color: var(--primary-text); }
 
-  #result { margin-top: 10px; font-size: 16px; text-align: center; font-weight: bold; color: #1A1A1A; min-height: 24px; }
+  #actionButtons { display: none; gap: 8px; margin-top: 8px; flex-shrink: 0; }
+  .action-btn { flex: 1; padding: 12px; font-size: 14px; border-radius: 12px; border: none; cursor: pointer; font-weight: 600; color: white; }
+  #saveFormulaBtn { background: var(--success); }
+  #exportFormulaBtn { background: var(--accent); }
 
-  /* Блок с кнопками после распознавания */
-  #actionButtons { display: none; gap: 8px; margin-top: 10px; }
-  .action-btn { flex: 1; padding: 12px; font-size: 15px; border-radius: 10px; border: none; cursor: pointer; font-weight: bold; color: white; }
-  #saveFormulaBtn { background: #4CAF50; }
-  #exportFormulaBtn { background: #d32f2f; }
+  /* Блок результата - делаем его несжимаемым и даем запас по высоте */
+  #result {
+    margin-top: 12px;
+    margin-bottom: 20px; /* Отступ снизу */
+    font-size: 15px;
+    text-align: center;
+    font-weight: 600;
+    min-height: 80px; /* Чтобы блок не схлопывался, когда пустой */
+    flex-shrink: 0;
+  }
 
-  #profileContent { display: none; flex: 1; overflow-y: auto; text-align: center; padding: 0 10px 20px 10px; }
-  .profile-card { background: #f8f9fa; border-radius: 12px; padding: 15px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
-  .profile-card h1 { margin: 0; font-size: 24px; color: #1A1A1A; }
-  .profile-card p { margin: 0; color: #666; font-size: 14px; }
-  .saved-item { background: #fff; border: 1px solid #eee; border-radius: 12px; padding: 15px; margin-bottom: 10px; text-align: center; }
-  .saved-item .formula { font-size: 20px; margin-bottom: 10px; min-height: 30px; }
-  .saved-item .date { font-size: 12px; color: #999; }
+  #profileContent { display: none; flex: 1; overflow-y: auto; padding-bottom: 20px; }
+  .profile-card { background: var(--card-bg); border-radius: 16px; padding: 14px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 8px rgba(0,0,0,0.03); }
+  .profile-card h1 { margin: 0; font-size: 24px; font-weight: 700; }
+  .profile-card p { margin: 0 0 4px 0; color: var(--text-muted); font-size: 12px; font-weight: 500; }
+  .saved-item { background: var(--card-bg); border-radius: 16px; padding: 14px; margin-bottom: 10px; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.03); }
+  .saved-item .formula { font-size: 20px; margin-bottom: 10px; min-height: 28px; }
+  .saved-item .date { font-size: 11px; color: var(--text-muted); }
+  .section-title { text-align: left; font-size: 16px; font-weight: 700; margin: 16px 0 10px 0; }
 </style>
 </head>
 <body>
+
+<!-- ОНБОРДИНГ -->
+<div id="onboarding">
+  <div class="onb-slide active" id="slide0">
+    <div class="onb-icon">📝</div>
+    <div class="onb-title" id="onbTitle0"></div>
+    <div class="onb-text" id="onbText0"></div>
+  </div>
+  <div class="onb-slide" id="slide1">
+    <div class="onb-icon">📊</div>
+    <div class="onb-title" id="onbTitle1"></div>
+    <div class="onb-text" id="onbText1"></div>
+  </div>
+
+  <div class="onb-dots">
+    <div class="onb-dot active" id="dot0"></div>
+    <div class="onb-dot" id="dot1"></div>
+  </div>
+  <button class="onb-btn" id="onbBtn" onclick="nextSlide()"></button>
+</div>
+
+<!-- ИНТЕРФЕЙС -->
 <div id="app">
-  <div class="tabs">
-    <div class="tab active" id="tabFormula">Formula</div>
-    <div class="tab" id="tabTrain">Practice</div>
-    <div class="tab" id="tabProfile">Profile</div>
+  <div class="top-bar">
+    <div class="tabs">
+      <div class="tab active" id="tabFormula"></div>
+      <div class="tab" id="tabTrain"></div>
+      <div class="tab" id="tabProfile"></div>
+    </div>
+    <button id="langSwitch" onclick="toggleLang()">RU</button>
   </div>
 
   <div id="drawContainer" style="display: flex; flex-direction: column; flex: 1;">
-
     <div id="difficultyPicker">
-      <div class="diff-btn active" id="diffEasy" onclick="setDifficulty('easy')">Easy</div>
-      <div class="diff-btn" id="diffMedium" onclick="setDifficulty('medium')">Medium</div>
-      <div class="diff-btn" id="diffHard" onclick="setDifficulty('hard')">Hard</div>
-      <div class="diff-btn" id="diffImp" onclick="setDifficulty('impossible')">Imp</div>
-      <div class="diff-btn" id="diffEndless" onclick="setDifficulty('endless')" style="color: #d32f2f;">Endless</div>
+      <div class="diff-btn active" id="diffEasy" onclick="setDifficulty('easy')"></div>
+      <div class="diff-btn" id="diffMedium" onclick="setDifficulty('medium')"></div>
+      <div class="diff-btn" id="diffHard" onclick="setDifficulty('hard')"></div>
+      <div class="diff-btn" id="diffImp" onclick="setDifficulty('impossible')"></div>
+      <div class="diff-btn" id="diffEndless" onclick="setDifficulty('endless')" style="color: var(--danger); border-color: var(--danger);"></div>
     </div>
 
     <div id="endlessHud">
-      <div>Streak: <span id="currentStreak" style="color: green;">0</span></div>
-      <div>Best: <span id="bestStreak" style="color: #d32f2f;">0</span></div>
+      <div><span id="lblStreak"></span>: <span id="currentStreak" style="color: var(--success);">0</span></div>
+      <div><span id="lblBest"></span>: <span id="bestStreak" style="color: var(--danger);">0</span></div>
     </div>
-    <div id="levelIndicator">Level 1 (Warmup)</div>
+    <div id="levelIndicator">Level 1</div>
 
     <div id="charPicker"></div>
 
     <div id="canvasWrap">
-      <div id="charStatsOverlay">Loading stats...</div>
+      <div id="charStatsOverlay">Loading...</div>
       <img id="templateImg" src="" alt="template">
       <canvas id="canvas"></canvas>
     </div>
 
     <div id="toolbar">
-      <button id="clearBtn">Clear</button>
-      <button id="sendBtn">Check</button>
+      <button id="clearBtn"></button>
+      <button id="sendBtn"></button>
     </div>
 
     <div id="actionButtons">
-      <button id="saveFormulaBtn" class="action-btn" onclick="saveCurrentFormula()">💾 Save</button>
-    <button id="exportFormulaBtn" class="action-btn" onclick="exportCurrentFormula()">📩 Send to Chat</button>
+      <button id="saveFormulaBtn" class="action-btn" onclick="saveCurrentFormula()"></button>
+      <button id="exportFormulaBtn" class="action-btn" onclick="exportCurrentFormula()"></button>
     </div>
 
     <div id="result"></div>
@@ -115,34 +178,154 @@
 
   <div id="profileContent">
     <div class="profile-card">
-      <div style="text-align: left;">
-        <p>Average Accuracy</p>
+      <div>
+        <p id="lblAvg"></p>
         <h1 id="avgScore">-</h1>
       </div>
       <div style="text-align: right;">
-        <p>Total Attempts</p>
+        <p id="lblTotal"></p>
         <h1 id="totalAttempts">-</h1>
       </div>
     </div>
 
-    <div class="profile-card" style="justify-content: center; background: #fff3f3; border: 1px solid #ffcdd2;">
-      <div style="text-align: center;">
-        <p style="color: #d32f2f;">Endless Record</p>
-        <h1 id="profileHighScore" style="color: #d32f2f;">-</h1>
+    <div class="profile-card" style="background: #FFF0F0;">
+      <div>
+        <p id="lblRecord" style="color: var(--danger);"></p>
+        <h1 id="profileHighScore" style="color: var(--danger);">-</h1>
       </div>
+      <div style="font-size: 40px;">🏆</div>
     </div>
 
-    <h3 style="text-align: left; margin-bottom: 10px; margin-top: 20px; color: #1A1A1A;">Saved Formulas</h3>
+    <div class="section-title" id="lblSaved"></div>
     <div id="savedList"></div>
   </div>
 </div>
 
 <script>
+  // --- СЛОВАРИ ПЕРЕВОДА ---
+  const translations = {
+    en: {
+      tabFormula: "Formula", tabTrain: "Practice", tabProfile: "Profile",
+      onbTitle0: "Welcome to WriteYourMath", onbText0: "Draw any math formula by hand, and AI will instantly recognize it. Or practice symbols to improve your handwriting.",
+      onbTitle1: "Track Your Progress", onbText1: "Save formulas, export them directly to this chat, and see your stats grow over time.",
+      next: "Next", start: "Get Started",
+      clear: "Clear", check: "Check", save: "💾 Save", send: "📩 Send to Chat",
+      lblAvg: "Average Accuracy", lblTotal: "Total Attempts", lblRecord: "Endless Record", lblSaved: "Saved Formulas",
+      lblStreak: "Streak", lblBest: "Best",
+      diffEasy: "Easy", diffMedium: "Medium", diffHard: "Hard", diffImp: "Imp", diffEndless: "Endless",
+      needSurvive: "Need > 75% to survive", passed: "Passed!", gameOver: "Game Over! Streak:", recognized: "Recognized:",
+      noSaved: "No saved formulas yet.", loading: "Loading...", savedOk: "Saved!", sentOk: "Sent!", error: "Error",
+      // Переводы для фидбека с бэкенда
+      fbPerfect: "Perfect! 🎯", fbGreat: "Great! Very close.", fbGood: "Good, but there are deviations.", fbTooFar: "Too far, try again.",
+      emptyCanvas: "Canvas is empty", statsUnavailable: "Stats unavailable", noAttempts: "No attempts yet"
+    },
+    ru: {
+      tabFormula: "Формула", tabTrain: "Тренировка", tabProfile: "Профиль",
+      onbTitle0: "Добро пожаловать в WriteYourMath", onbText0: "Рисуй любые математические формулы от руки, и ИИ мгновенно распознает их. Или тренируй написание символов.",
+      onbTitle1: "Следи за прогрессом", onbText1: "Сохраняй формулы, отправляй их прямо в чат и смотри, как растёт твоя статистика.",
+      next: "Далее", start: "Начать",
+      clear: "Очистить", check: "Проверить", save: "💾 Сохранить", send: "📩 В чат",
+      lblAvg: "Средняя точность", lblTotal: "Всего попыток", lblRecord: "Рекорд Endless", lblSaved: "Сохранённые формулы",
+      lblStreak: "Стрик", lblBest: "Рекорд",
+      diffEasy: "Легко", diffMedium: "Средне", diffHard: "Сложно", diffImp: "Хард", diffEndless: "Бесконечно",
+      needSurvive: "Нужно > 75% чтобы выжить", passed: "Пройдено!", gameOver: "Игра окончена! Стрик:", recognized: "Распознано:",
+      noSaved: "Пока нет сохранённых формул.", loading: "Загрузка...", savedOk: "Сохранено!", sentOk: "Отправлено!", error: "Ошибка",
+      fbPerfect: "Идеально! 🎯", fbGreat: "Отлично! Очень близко.", fbGood: "Хорошо, но есть отклонения.", fbTooFar: "Слишком далеко, попробуй ещё.",
+      emptyCanvas: "Холст пуст", statsUnavailable: "Статистика недоступна", noAttempts: "Пока нет попыток"
+    }
+  };
+
+  let lang = localStorage.getItem('lang') || 'ru'; // По умолчанию русский
+
+  function toggleLang() {
+    lang = lang === 'en' ? 'ru' : 'en';
+    localStorage.setItem('lang', lang);
+    applyTranslations();
+  }
+
+  function applyTranslations() {
+    document.getElementById('langSwitch').innerText = lang === 'en' ? 'RU' : 'EN';
+    const t = translations[lang];
+
+    document.getElementById('tabFormula').innerText = t.tabFormula;
+    document.getElementById('tabTrain').innerText = t.tabTrain;
+    document.getElementById('tabProfile').innerText = t.tabProfile;
+
+    document.getElementById('onbTitle0').innerText = t.onbTitle0;
+    document.getElementById('onbText0').innerText = t.onbText0;
+    document.getElementById('onbTitle1').innerText = t.onbTitle1;
+    document.getElementById('onbText1').innerText = t.onbText1;
+    document.getElementById('onbBtn').innerText = currentSlide === 1 ? t.start : t.next;
+
+    document.getElementById('clearBtn').innerText = t.clear;
+    document.getElementById('sendBtn').innerText = t.check;
+    document.getElementById('saveFormulaBtn').innerText = t.save;
+    document.getElementById('exportFormulaBtn').innerText = t.send;
+
+    document.getElementById('lblAvg').innerText = t.lblAvg;
+    document.getElementById('lblTotal').innerText = t.lblTotal;
+    document.getElementById('lblRecord').innerText = t.lblRecord;
+    document.getElementById('lblSaved').innerText = t.lblSaved;
+    document.getElementById('lblStreak').innerText = t.lblStreak;
+    document.getElementById('lblBest').innerText = t.lblBest;
+
+    document.getElementById('diffEasy').innerText = t.diffEasy;
+    document.getElementById('diffMedium').innerText = t.diffMedium;
+    document.getElementById('diffHard').innerText = t.diffHard;
+    document.getElementById('diffImp').innerText = t.diffImp;
+    document.getElementById('diffEndless').innerText = t.diffEndless;
+
+    // Перерисовка выбранного элемента, чтобы обновить лейблы
+    if (mode === 'train' && difficulty !== 'endless' && charPicker.firstChild) {
+        charPicker.firstChild.click();
+    }
+  }
+
+  // --- ОНБОРДИНГ ---
+  let currentSlide = 0;
+  const totalSlides = 2;
+
+  function nextSlide() {
+    document.getElementById('slide' + currentSlide).classList.remove('active');
+    document.getElementById('dot' + currentSlide).classList.remove('active');
+
+    currentSlide++;
+
+    if (currentSlide < totalSlides) {
+      document.getElementById('slide' + currentSlide).classList.add('active');
+      document.getElementById('dot' + currentSlide).classList.add('active');
+      document.getElementById('onbBtn').innerText = translations[lang].start;
+    } else {
+      localStorage.setItem('onboardingDone', 'true');
+      document.getElementById('onboarding').style.opacity = '0';
+      setTimeout(() => { document.getElementById('onboarding').style.display = 'none'; }, 300);
+    }
+  }
+
+  if (!localStorage.getItem('onboardingDone')) {
+    document.getElementById('onboarding').style.display = 'flex';
+  } else {
+    document.getElementById('onboarding').style.display = 'none';
+  }
+
+  // --- ОСНОВНАЯ ЛОГИКА ---
   const tg = window.Telegram?.WebApp;
   if (tg) { tg.ready(); tg.expand(); }
 
   const userId = (tg && tg.initDataUnsafe?.user) ? tg.initDataUnsafe.user.id.toString() : "test_user";
-
+  // Получаем данные из Telegram и регистрируем/обновляем пользователя в БД
+  const userInfo = tg && tg.initDataUnsafe?.user;
+  if (userInfo) {
+    fetch('/auth', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            user_id: userInfo.id.toString(),
+            username: userInfo.username || "",
+            first_name: userInfo.first_name || ""
+        })
+    }).catch(e => console.log("Auth error:", e));
+    }
   const canvas = document.getElementById('canvas');
   const ctx = canvas.getContext('2d');
   const templateImg = document.getElementById('templateImg');
@@ -169,16 +352,35 @@
   let endlessBest = 0;
   let endlessThreshold = 75;
 
-  const charsToTrain = "0123456789abcdefghijklmnopqrstuvwxyz".split("");
+  const charsToTrain = "0123456789abcdefghijklmnopqrstuvwxyzαβγδεζηθικλμνξοπρστυφχψω".split("");
 
-  const endlessLevel1 = ["exp_1", "exp_2", "exp_3", "exp_4", "exp_9", "exp_10"];
-  const endlessLevel2 = ["exp_11", "exp_12", "exp_13", "exp_14", "exp_15", "exp_16"];
-  const endlessLevel3 = ["exp_5", "exp_6", "exp_7", "exp_8", "exp_17", "exp_22"];
-  const endlessLevel4 = ["imp_1", "imp_2", "imp_3", "imp_4", "exp_20", "exp_24"];
+  const mediumExps = ["exp_1","exp_2","exp_3","exp_4","exp_5","exp_6","exp_7","exp_8","exp_9","exp_10","exp_11","exp_12","exp_13","exp_14","exp_15","exp_16","exp_17","exp_18","exp_19","exp_20","exp_21","exp_22","exp_23","exp_24","exp_25","exp_26","exp_27","exp_28","exp_29","exp_30"];
+  const hardExps = ["exp_31","exp_32","exp_33","exp_34","exp_35","exp_36","exp_37","exp_38","exp_39","exp_40","exp_41","exp_42","exp_43","exp_44","exp_45","exp_46","exp_47","exp_48","exp_49","exp_50","exp_51","exp_52","exp_53","exp_54","exp_55","exp_56","exp_57","exp_58","exp_59","exp_60","exp_61","exp_62","exp_63","exp_64","exp_65","exp_66","exp_67","exp_68","exp_69","exp_70"];
+  const impExps = ["exp_71","exp_72","exp_73","exp_74","exp_75","exp_76","exp_77","exp_78","exp_79","exp_80","exp_81","exp_82","exp_83","exp_84","exp_85","exp_86","exp_87","exp_88","exp_89","exp_90","exp_91","exp_92","exp_93","exp_94","exp_95","exp_96","exp_97","exp_98","exp_99","exp_100"];
 
-  const mediumExps = ["exp_1", "exp_2", "exp_3", "exp_4", "exp_9", "exp_10", "exp_11", "exp_12", "exp_13", "exp_14", "exp_15", "exp_16"];
-  const hardExps = ["exp_5", "exp_6", "exp_7", "exp_8", "exp_17", "exp_18", "exp_19", "exp_20", "exp_21", "exp_22", "exp_23", "exp_24"];
-  const impExps = ["imp_1", "imp_2", "imp_3", "imp_4"];
+  const expNames = {
+    "exp_1": "x+1", "exp_2": "2a", "exp_3": "y=5", "exp_4": "a-b", "exp_5": "3x", "exp_6": "b=2",
+    "exp_7": "x+y", "exp_8": "m-n", "exp_9": "5-2", "exp_10": "4c", "exp_11": "p=q", "exp_12": "7+8",
+    "exp_13": "a+b", "exp_14": "x=3", "exp_15": "2y", "exp_16": "4+5", "exp_17": "n-1", "exp_18": "3+a",
+    "exp_19": "y=7", "exp_20": "c-d", "exp_21": "8-4", "exp_22": "x-2", "exp_23": "5y", "exp_24": "b+3",
+    "exp_25": "z=1", "exp_26": "6+2", "exp_27": "a=4", "exp_28": "m+2", "exp_29": "9-3", "exp_30": "2x+1",
+    "exp_31": "a/b", "exp_32": "x²", "exp_33": "√x", "exp_34": "2x+3", "exp_35": "y³",
+    "exp_36": "1/x", "exp_37": "√y", "exp_38": "a²+b²", "exp_39": "x/2", "exp_40": "3x-1",
+    "exp_41": "√(x+1)", "exp_42": "x²=4", "exp_43": "2/3", "exp_44": "z²", "exp_45": "√z",
+    "exp_46": "4x-2", "exp_47": "(a+c)/b", "exp_48": "x³", "exp_49": "√(x-1)", "exp_50": "x²+2x",
+    "exp_51": "3/x", "exp_52": "2x²", "exp_53": "y²-1", "exp_54": "√(2x)", "exp_55": "5x+2",
+    "exp_56": "(x+1)/2", "exp_57": "a³", "exp_58": "√(x²)", "exp_59": "4x²", "exp_60": "1/x²",
+    "exp_61": "x=2³", "exp_62": "√4", "exp_63": "7y-3", "exp_64": "y/4", "exp_65": "3x²-5",
+    "exp_66": "√(x+2)", "exp_67": "x²-9", "exp_68": "x/y", "exp_69": "2x+2y", "exp_70": "x³-1",
+    "exp_71": "∫x²dx", "exp_72": "lim(sin x/x)", "exp_73": "Σi²", "exp_74": "e^(iπ)+1",
+    "exp_75": "∫x dx", "exp_76": "lim(1/x)", "exp_77": "Σk", "exp_78": "d/dx x²",
+    "exp_79": "∫sin x dx", "exp_80": "lim(x²-1)", "exp_81": "Σ1/n²", "exp_82": "d/dx e^x",
+    "exp_83": "∫1/x dx", "exp_84": "lim(f(x+h))", "exp_85": "Πi", "exp_86": "i²=-1",
+    "exp_87": "∫e^x dx", "exp_88": "lim(1-cos x)", "exp_89": "ΣC(n,i)", "exp_90": "d/dx ln x",
+    "exp_91": "∫xe^x dx", "exp_92": "lim(1+1/n)ⁿ", "exp_93": "Σ1/i", "exp_94": "∂f/∂x",
+    "exp_95": "∫e^-x dx", "exp_96": "lim(tan x/x)", "exp_97": "Σi³", "exp_98": "∇·E",
+    "exp_99": "∫sin x dx", "exp_100": "lim(e^-x)"
+  };
 
   function setDifficulty(level) {
     difficulty = level;
@@ -219,8 +421,8 @@
         pool.forEach(id => {
           const btn = document.createElement('button');
           btn.className = 'char-btn';
-          btn.textContent = id;
-          btn.onclick = () => selectItem(btn, null, id, id);
+          btn.textContent = expNames[id] || id;
+          btn.onclick = () => selectItem(btn, null, id, expNames[id] || id);
           charPicker.appendChild(btn);
         });
       }
@@ -251,24 +453,20 @@
     let pool;
     let levelText;
 
-    if (endlessStreak < 3) {
-      pool = endlessLevel1; levelText = "Level 1 (Warmup)";
-    } else if (endlessStreak < 6) {
-      pool = endlessLevel2; levelText = "Level 2 (Basic)";
-    } else if (endlessStreak < 10) {
-      pool = endlessLevel3; levelText = "Level 3 (Advanced)";
-    } else {
-      pool = endlessLevel4; levelText = "Level 4 (IMPOSSIBLE)";
-    }
+    if (endlessStreak < 3) { pool = mediumExps.slice(0, 10); levelText = "Level 1"; }
+    else if (endlessStreak < 6) { pool = mediumExps.slice(10, 20); levelText = "Level 2"; }
+    else if (endlessStreak < 10) { pool = hardExps; levelText = "Level 3"; }
+    else { pool = impExps; levelText = "Level 4 (Max)"; }
 
     levelIndicator.textContent = levelText;
 
     const randomExp = pool[Math.floor(Math.random() * pool.length)];
     currentExpId = randomExp;
     currentCharCode = null;
+    currentChar = expNames[randomExp] || randomExp;
     updateTemplate();
     clearCanvas();
-    result.innerHTML = `<span style="color: #666; font-size: 14px;">Need > ${endlessThreshold}% to survive</span>`;
+    result.innerHTML = `<span style="color: var(--text-muted); font-size: 14px; font-weight: 500;">${translations[lang].needSurvive}</span>`;
   }
 
   async function loadBestStreak() {
@@ -282,20 +480,18 @@
 
   async function loadCharStats() {
     if (!currentCharCode && !currentExpId) return;
-    charStatsOverlay.innerHTML = "Loading...";
-
+    charStatsOverlay.innerHTML = translations[lang].loading;
     const codeToQuery = currentExpId || currentCharCode;
-
     try {
       const resp = await fetch(`/char_stats?user_id=${userId}&char_code=${codeToQuery}`);
       const json = await resp.json();
       if (json.attempts > 0) {
-        charStatsOverlay.innerHTML = `<b>${currentChar}</b> | Avg: <b>${json.average}%</b> (${json.attempts} tries)`;
+        charStatsOverlay.innerHTML = `<b>${currentChar}</b> | ${translations[lang].lblAvg}: <b>${json.average}%</b> (${json.attempts})`;
       } else {
-        charStatsOverlay.innerHTML = `<b>${currentChar}</b> | No attempts yet`;
+        charStatsOverlay.innerHTML = `<b>${currentChar}</b> | ${translations[lang].noAttempts}`;
       }
     } catch (e) {
-      charStatsOverlay.innerHTML = `<b>${currentChar}</b> | Stats unavailable`;
+      charStatsOverlay.innerHTML = `<b>${currentChar}</b> | ${translations[lang].statsUnavailable}`;
     }
   }
 
@@ -337,35 +533,27 @@
   }
 
   function updateTemplate() {
-    if (currentCharCode) {
-      templateImg.src = `/static/templates/u${currentCharCode}.png`;
-    } else if (currentExpId) {
-      templateImg.src = `/static/templates/${currentExpId}.png`;
-    }
+    if (currentCharCode) templateImg.src = `/static/templates/u${currentCharCode}.png`;
+    else if (currentExpId) templateImg.src = `/static/templates/${currentExpId}.png`;
   }
 
   function resize() {
     const rect = canvas.parentElement.getBoundingClientRect();
-
     const tempCanvas = document.createElement('canvas');
     tempCanvas.width = canvas.width;
     tempCanvas.height = canvas.height;
-    if (canvas.width > 0 && canvas.height > 0) {
-        tempCanvas.getContext('2d').drawImage(canvas, 0, 0);
-    }
+    if (canvas.width > 0 && canvas.height > 0) tempCanvas.getContext('2d').drawImage(canvas, 0, 0);
 
     const dpr = window.devicePixelRatio || 1;
     canvas.width = rect.width * dpr;
     canvas.height = rect.height * dpr;
 
-    ctx.lineWidth = (mode === 'train' ? 12 : 5) * dpr;
+    ctx.lineWidth = (mode === 'train' ? 8 : 5) * dpr;
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
     ctx.strokeStyle = '#1A1A1A';
 
-    if (tempCanvas.width > 0 && tempCanvas.height > 0) {
-        ctx.drawImage(tempCanvas, 0, 0, canvas.width, canvas.height);
-    }
+    if (tempCanvas.width > 0 && tempCanvas.height > 0) ctx.drawImage(tempCanvas, 0, 0, canvas.width, canvas.height);
   }
 
   function clearCanvas() {
@@ -373,7 +561,7 @@
     if (difficulty !== 'endless') result.textContent = '';
     lastAttemptId = null;
     lastLatex = null;
-    actionButtons.style.display = 'none'; // Скрываем кнопки
+    actionButtons.style.display = 'none';
   }
 
   function getPos(e) {
@@ -402,7 +590,7 @@
   document.getElementById('clearBtn').onclick = clearCanvas;
 
   document.getElementById('sendBtn').onclick = async () => {
-    result.textContent = 'Checking...';
+    result.innerHTML = `<span style="color: var(--text-muted);">${translations[lang].loading}</span>`;
     actionButtons.style.display = 'none';
 
     const dataUrl = canvas.toDataURL('image/png');
@@ -420,10 +608,11 @@
       }
 
       const resp = await fetch(url, { method: 'POST', body: form });
-
       if (!resp.ok) {
         const err = await resp.json().catch(() => ({}));
-        throw new Error(err.detail || "Server error");
+        // Обработка ошибки с бэкенда
+        if (err.detail === "Canvas is empty") throw new Error(translations[lang].emptyCanvas);
+        throw new Error(err.detail || translations[lang].error);
       }
 
       const json = await resp.json();
@@ -432,13 +621,12 @@
         lastAttemptId = json.attempt_id;
         lastLatex = json.latex;
         result.innerHTML = `
-          <div style="margin-bottom: 10px;">Recognized:</div>
-          <div id="katexOut" style="font-size: 24px; margin-bottom: 10px; overflow-x: auto;"></div>
+          <div style="margin-bottom: 10px; font-size: 14px; color: var(--text-muted); font-weight: 500;">${translations[lang].recognized}</div>
+          <div id="katexOut" style="font-size: 26px; margin-bottom: 16px; overflow-x: auto;"></div>
         `;
         try { katex.render(json.latex, document.getElementById('katexOut'), { throwOnError: false }); }
         catch (e) { document.getElementById('katexOut').innerText = json.latex; }
 
-        // Показываем кнопки
         actionButtons.style.display = 'flex';
 
       } else {
@@ -446,10 +634,10 @@
           if (json.score >= endlessThreshold) {
             endlessStreak++;
             document.getElementById('currentStreak').textContent = endlessStreak;
-            result.innerHTML = `<span style="color: green;">Score: ${json.score}% - Passed!</span>`;
+            result.innerHTML = `<span style="color: var(--success);">Score: ${json.score}% - ${translations[lang].passed}</span>`;
             setTimeout(nextEndlessRound, 1500);
           } else {
-            result.innerHTML = `<span style="color: red;">Score: ${json.score}% - Game Over! Streak: ${endlessStreak}</span>`;
+            result.innerHTML = `<span style="color: var(--danger);">Score: ${json.score}% - ${translations[lang].gameOver} ${endlessStreak}</span>`;
             if (endlessStreak > endlessBest) {
               fetch('/highscore', {
                 method: 'POST',
@@ -465,19 +653,30 @@
             }, 3000);
           }
         } else {
-          result.innerHTML = `<div>Accuracy: <b>${json.score}%</b></div><div style="font-size:14px;font-weight:normal;">${json.feedback}</div>`;
+          const color = json.score >= 80 ? 'var(--success)' : json.score >= 50 ? '#FF9500' : 'var(--danger)';
+          // Перевод фидбека с бэкенда
+          let feedbackText = json.feedback;
+          if (feedbackText.includes("Perfect")) feedbackText = translations[lang].fbPerfect;
+          else if (feedbackText.includes("Great")) feedbackText = translations[lang].fbGreat;
+          else if (feedbackText.includes("Good")) feedbackText = translations[lang].fbGood;
+          else if (feedbackText.includes("Too far")) feedbackText = translations[lang].fbTooFar;
+
+          result.innerHTML = `
+            <div style="font-size: 24px; margin-bottom: 4px; color: ${color};">${json.score}%</div>
+            <div style="font-size:14px; font-weight:500; color: var(--text-muted);">${feedbackText}</div>
+          `;
           loadCharStats();
         }
       }
     } catch (err) {
-      result.innerHTML = `<span style="color: red;">${err.message}</span>`;
+      result.innerHTML = `<span style="color: var(--danger); font-size: 14px;">${err.message}</span>`;
     }
   };
 
   async function saveCurrentFormula() {
     if (!lastAttemptId) return;
     const btn = document.getElementById('saveFormulaBtn');
-    btn.innerText = "⏳ Saving...";
+    btn.innerText = "⏳...";
     btn.disabled = true;
     try {
       await fetch('/save_formula', {
@@ -485,23 +684,21 @@
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({ attempt_id: lastAttemptId })
       });
-      btn.innerText = "✅ Saved!";
-      btn.style.background = "#2196F3";
+      btn.innerText = "✅ " + translations[lang].savedOk;
       setTimeout(() => { actionButtons.style.display = 'none'; }, 1500);
     } catch(e) {
-      btn.innerText = "❌ Error";
+      btn.innerText = "❌ " + translations[lang].error;
       btn.disabled = false;
     }
   }
 
-    async function exportCurrentFormula() {
+  async function exportCurrentFormula() {
     if (!lastLatex) return;
     const btn = document.getElementById('exportFormulaBtn');
-    btn.innerText = "⏳ Sending...";
+    btn.innerText = "⏳...";
     btn.disabled = true;
 
     try {
-      // 1. Рендерим формулу в красивый div
       const container = document.createElement('div');
       container.style.position = 'absolute';
       container.style.left = '-9999px';
@@ -512,41 +709,31 @@
       div.style.padding = '40px';
       div.style.backgroundColor = 'white';
       div.style.color = 'black';
-      div.style.width = '400px'; // Ширина картинки
+      div.style.width = '400px';
       div.style.textAlign = 'center';
 
-      try {
-        katex.render(lastLatex, div, { throwOnError: false });
-      } catch(e) {
-        div.innerText = lastLatex;
-      }
+      try { katex.render(lastLatex, div, { throwOnError: false }); }
+      catch(e) { div.innerText = lastLatex; }
 
       container.appendChild(div);
 
-      // 2. Делаем из div картинку (PNG)
       const canvas = await html2canvas(div, { scale: 3, backgroundColor: '#ffffff' });
       const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
 
-      // 3. Отправляем в API
       const form = new FormData();
       form.append('user_id', userId);
       form.append('photo', blob, 'formula.png');
 
       const resp = await fetch('/send_to_chat', { method: 'POST', body: form });
-
-      if (!resp.ok) {
-         throw new Error("Failed to send");
-      }
+      if (!resp.ok) throw new Error("Failed to send");
 
       document.body.removeChild(container);
-
-      btn.innerText = "✅ Sent to Chat!";
-      setTimeout(() => { btn.innerText = "📩 Send to Chat"; btn.disabled = false; }, 2000);
+      btn.innerText = "✅ " + translations[lang].sentOk;
+      setTimeout(() => { btn.innerText = translations[lang].send; btn.disabled = false; }, 2000);
 
     } catch(e) {
-      console.error(e);
-      btn.innerText = "❌ Error";
-      setTimeout(() => { btn.innerText = "📩 Send to Chat"; btn.disabled = false; }, 3000);
+      btn.innerText = "❌ " + translations[lang].error;
+      setTimeout(() => { btn.innerText = translations[lang].send; btn.disabled = false; }, 3000);
     }
   }
 
@@ -568,7 +755,7 @@
   }
 
   async function loadSavedFormulas() {
-    document.getElementById('savedList').innerHTML = "Loading...";
+    document.getElementById('savedList').innerHTML = `<div style='color: var(--text-muted); text-align: center; padding: 20px;'>${translations[lang].loading}</div>`;
     try {
       const resp = await fetch(`/saved_formulas?user_id=${userId}`);
       const json = await resp.json();
@@ -582,18 +769,21 @@
           </div>
         `;
       });
-      document.getElementById('savedList').innerHTML = html || "<div style='color:#999; padding:20px;'>No saved formulas yet.</div>";
+      document.getElementById('savedList').innerHTML = html || `<div style='color: var(--text-muted); text-align: center; padding: 20px; font-size: 14px;'>${translations[lang].noSaved}</div>`;
 
       json.formulas.forEach(f => {
         try { katex.render(f.latex, document.getElementById(`saved-${f.id}`), { throwOnError: false }); }
         catch(e) { document.getElementById(`saved-${f.id}`).innerText = f.latex; }
       });
     } catch(e) {
-      document.getElementById('savedList').innerHTML = "Error loading formulas.";
+      document.getElementById('savedList').innerHTML = `<div style='color: var(--danger); text-align: center;'>${translations[lang].error}</div>`;
     }
   }
 
   window.addEventListener('resize', resize);
+
+  // Инициализация
+  applyTranslations();
   resize();
   setMode('formula');
 </script>
