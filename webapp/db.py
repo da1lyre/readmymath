@@ -1,8 +1,9 @@
 import os
 from datetime import datetime
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+
+from sqlalchemy import Boolean, Column, DateTime, Float, Integer, String, func, select
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
-from sqlalchemy import Column, Integer, String, Float, DateTime, Boolean, select, func
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 
@@ -15,7 +16,7 @@ Base = declarative_base()
 
 class User(Base):
     __tablename__ = "users"
-    user_id = Column(String, primary_key=True)  # Telegram ID
+    user_id = Column(String, primary_key=True)
     username = Column(String, nullable=True)
     first_name = Column(String, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
@@ -47,7 +48,7 @@ async def init_db():
         await conn.run_sync(Base.metadata.create_all)
 
 
-async def get_or_create_user(user_id: str, username: str = None, first_name: str = None):
+async def get_or_create_user(user_id: str, username: str | None = None, first_name: str | None = None):
     async with AsyncSessionLocal() as session:
         result = await session.execute(select(User).where(User.user_id == user_id))
         user = result.scalar_one_or_none()
@@ -56,9 +57,10 @@ async def get_or_create_user(user_id: str, username: str = None, first_name: str
             user = User(user_id=user_id, username=username, first_name=first_name)
             session.add(user)
         else:
-            # Обновляем данные, если они изменились
-            if username: user.username = username
-            if first_name: user.first_name = first_name
+            if username:
+                user.username = username
+            if first_name:
+                user.first_name = first_name
 
         await session.commit()
         return user
@@ -70,7 +72,6 @@ async def get_user_profile(user_id: str):
         return result.scalar_one_or_none()
 
 
-# --- ОСТАЛЬНЫЕ ФУНКЦИИ (без изменений) ---
 async def save_attempt(user_id: str, char_code: str, latex_str: str, score: float):
     async with AsyncSessionLocal() as session:
         attempt = Attempt(user_id=user_id, char_code=char_code, latex_str=latex_str, score=score)
@@ -91,7 +92,7 @@ async def save_formula(formula_id: int):
 async def get_saved_formulas(user_id: str):
     async with AsyncSessionLocal() as session:
         result = await session.execute(
-            select(Attempt).where(Attempt.user_id == user_id, Attempt.is_saved == True).order_by(
+            select(Attempt).where(Attempt.user_id == user_id, Attempt.is_saved.is_(True)).order_by(
                 Attempt.created_at.desc())
         )
         return result.scalars().all()
@@ -160,7 +161,6 @@ async def get_total_attempts(user_id: str):
 
 async def get_leaderboard(limit: int = 10):
     async with AsyncSessionLocal() as session:
-        # Джоиним пользователей и их рекорды
         result = await session.execute(
             select(User.first_name, User.username, HighScore.score)
             .join(HighScore, User.user_id == HighScore.user_id)
@@ -168,7 +168,6 @@ async def get_leaderboard(limit: int = 10):
             .order_by(HighScore.score.desc())
             .limit(limit)
         )
-        # Возвращаем список кортежей (first_name, username, score)
         return result.all()
 
 

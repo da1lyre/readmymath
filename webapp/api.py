@@ -1,20 +1,32 @@
+import asyncio
 import io
 import os
 import uuid
-import asyncio
-import httpx
-import cv2
-import numpy as np
 from pathlib import Path
-from scipy.spatial import cKDTree
-from fastapi import FastAPI, UploadFile, File, HTTPException, Request, Form
+
+import cv2
+import httpx
+import numpy as np
+from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from PIL import Image
+from scipy.spatial import cKDTree
+
 from webapp.db import (
-    init_db, save_attempt, get_history, get_average_score,
-    get_char_stats, get_total_attempts, get_high_score, update_high_score, save_formula, get_saved_formulas,
-    get_leaderboard, get_user_rank, get_or_create_user
+    get_average_score,
+    get_char_stats,
+    get_high_score,
+    get_history,
+    get_leaderboard,
+    get_or_create_user,
+    get_saved_formulas,
+    get_total_attempts,
+    get_user_rank,
+    init_db,
+    save_attempt,
+    save_formula,
+    update_high_score,
 )
 
 app = FastAPI(title="WriteYourMath API")
@@ -35,13 +47,11 @@ SHARED_DIR.mkdir(parents=True, exist_ok=True)
 TEMPLATES_DIR = WEB_DIR / "templates"
 
 EXPRESSION_LATEX = {
-    # Medium
     "exp_1": "x+1", "exp_2": "2a", "exp_3": "y=5", "exp_4": "a-b", "exp_5": "3x", "exp_6": "b=2",
     "exp_7": "x+y", "exp_8": "m-n", "exp_9": "5-2", "exp_10": "4c", "exp_11": "p=q", "exp_12": "7+8",
     "exp_13": "a+b", "exp_14": "x=3", "exp_15": "2y", "exp_16": "4+5", "exp_17": "n-1", "exp_18": "3+a",
     "exp_19": "y=7", "exp_20": "c-d", "exp_21": "8-4", "exp_22": "x-2", "exp_23": "5y", "exp_24": "b+3",
     "exp_25": "z=1", "exp_26": "6+2", "exp_27": "a=4", "exp_28": "m+2", "exp_29": "9-3", "exp_30": "2x+1",
-    # Hard
     "exp_31": "\\frac{a}{b}", "exp_32": "x^2", "exp_33": "\\sqrt{x}", "exp_34": "2x+3", "exp_35": "y^3",
     "exp_36": "\\frac{1}{x}", "exp_37": "\\sqrt{y}", "exp_38": "a^2+b^2", "exp_39": "\\frac{x}{2}", "exp_40": "3x-1",
     "exp_41": "\\sqrt{x+1}", "exp_42": "x^2=4", "exp_43": "\\frac{2}{3}", "exp_44": "z^2", "exp_45": "\\sqrt{z}",
@@ -50,7 +60,6 @@ EXPRESSION_LATEX = {
     "exp_56": "\\frac{x+1}{2}", "exp_57": "a^3", "exp_58": "\\sqrt{x^2}", "exp_59": "4x^2", "exp_60": "\\frac{1}{x^2}",
     "exp_61": "x=2^3", "exp_62": "\\sqrt{4}", "exp_63": "7y-3", "exp_64": "\\frac{y}{4}", "exp_65": "3x^2-5",
     "exp_66": "\\sqrt{x+2}", "exp_67": "x^2-9", "exp_68": "\\frac{x}{y}", "exp_69": "2x+2y", "exp_70": "x^3-1",
-    # Imp
     "exp_71": "\\int_0^1 x^2 \\, dx", "exp_72": "\\lim_{x \\to 0} \\frac{\\sin x}{x}", "exp_73": "\\sum_{i=1}^n i^2", "exp_74": "e^{i\\pi} + 1 = 0",
     "exp_75": "\\int x \\, dx", "exp_76": "\\lim_{x \\to \\infty} \\frac{1}{x}", "exp_77": "\\sum_{k=1}^n k", "exp_78": "\\frac{d}{dx} x^2",
     "exp_79": "\\int_0^\\pi \\sin x \\, dx", "exp_80": "\\lim_{x \\to 1} \\frac{x^2-1}{x-1}", "exp_81": "\\sum_{n=1}^\\infty \\frac{1}{n^2}", "exp_82": "\\frac{d}{dx} e^x",
@@ -60,6 +69,7 @@ EXPRESSION_LATEX = {
     "exp_95": "\\int_0^\\infty e^{-x} \\, dx", "exp_96": "\\lim_{x \\to 0} \\frac{\\tan x}{x}", "exp_97": "\\sum_{i=1}^n i^3", "exp_98": "\\nabla \\cdot \\vec{E}",
     "exp_99": "\\int \\sin x \\, dx", "exp_100": "\\lim_{x \\to \\infty} e^{-x}"
 }
+
 
 @app.on_event("startup")
 async def startup():
@@ -78,7 +88,7 @@ def check_empty_canvas(image_bytes: bytes) -> bool:
             img = bg
         img = img.convert("L")
         return img.point(lambda p: 255 if p < 200 else 0).getbbox() is None
-    except Exception:
+    except (OSError, ValueError):
         return True
 
 
@@ -121,7 +131,7 @@ def preprocess_for_ocr(image_bytes: bytes) -> bytes:
     return buf.getvalue()
 
 
-def compare_images(template_path: Path, user_bytes: bytes, resize_to_square=True):
+def compare_images(template_path: Path, user_bytes: bytes, resize_to_square: bool = True):
     template = cv2.imread(str(template_path), cv2.IMREAD_GRAYSCALE)
     if template is None:
         return 0, "Template not found"
@@ -228,8 +238,8 @@ async def recognize(request: Request, file: UploadFile = File(...)):
             resp.raise_for_status()
             data = resp.json()
         latex = data.get("text") or data.get("latex") or data.get("result") or ""
-    except Exception as e:
-        raise HTTPException(status_code=502, detail=f"CrispEmbed error: {e}")
+    except (httpx.HTTPError, ValueError) as e:
+        raise HTTPException(status_code=502, detail=f"CrispEmbed error: {e}") from e
     finally:
         try:
             shared_path.unlink()
@@ -329,6 +339,7 @@ async def api_save_formula(request: Request):
         await save_formula(int(formula_id))
     return {"status": "ok"}
 
+
 @app.get("/saved_formulas")
 async def api_saved_formulas(request: Request):
     user_id = request.query_params.get("user_id", "test_user")
@@ -362,8 +373,8 @@ async def send_to_chat(
             resp.raise_for_status()
 
         return {"status": "ok"}
-    except Exception as e:
-        raise HTTPException(status_code=502, detail=f"Bot error: {e}")
+    except (httpx.HTTPError, OSError) as e:
+        raise HTTPException(status_code=502, detail=f"Bot error: {e}") from e
 
 
 @app.post("/auth")
@@ -416,13 +427,21 @@ async def get_achievements(request: Request):
 
     unlocked = []
 
-    if total_attempts >= 1: unlocked.append("first_step")
-    if total_attempts >= 10: unlocked.append("hard_worker")
-    if total_attempts >= 50: unlocked.append("marathon")
-    if total_attempts >= 5 and avg_score >= 80: unlocked.append("sniper")
-    if high_score >= 3: unlocked.append("on_fire")
-    if high_score >= 10: unlocked.append("endless_king")
-    if saved_count >= 1: unlocked.append("mathematician")
-    if saved_count >= 5: unlocked.append("collector")
+    if total_attempts >= 1:
+        unlocked.append("first_step")
+    if total_attempts >= 10:
+        unlocked.append("hard_worker")
+    if total_attempts >= 50:
+        unlocked.append("marathon")
+    if total_attempts >= 5 and avg_score >= 80:
+        unlocked.append("sniper")
+    if high_score >= 3:
+        unlocked.append("on_fire")
+    if high_score >= 10:
+        unlocked.append("endless_king")
+    if saved_count >= 1:
+        unlocked.append("mathematician")
+    if saved_count >= 5:
+        unlocked.append("collector")
 
     return {"unlocked": unlocked}

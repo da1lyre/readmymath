@@ -19,7 +19,7 @@ jobs:
       - name: Install Ruff
         run: pip install ruff
       - name: Run Ruff
-        run: ruff check webapp/ src/ --ignore E501
+        run: ruff check webapp/ src/
 
   test:
     name: Test (Pytest)
