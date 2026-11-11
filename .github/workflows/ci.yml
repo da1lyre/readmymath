@@ -33,7 +33,7 @@ jobs:
       - name: Install dependencies
         run: |
           pip install -r infra/requirements.txt
-          pip install pytest httpx
+          pip install pytest httpx aiosqlite greenlet
       - name: Run tests
         run: pytest tests/ -v
         env:
