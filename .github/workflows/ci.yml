@@ -38,6 +38,7 @@ jobs:
         run: pytest tests/ -v
         env:
           DATABASE_URL: "sqlite+aiosqlite:///:memory:"
+          SHARED_DIR: "/tmp/shared"
 
   build:
     name: Build Docker

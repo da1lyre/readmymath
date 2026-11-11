@@ -42,7 +42,7 @@ WEB_DIR = Path(__file__).resolve().parent
 app.mount("/static", StaticFiles(directory=WEB_DIR, html=True), name="static")
 
 CRISPEMBED_URL = os.getenv("CRISPEMBED_SERVER_URL", "http://crispembed:8080")
-SHARED_DIR = Path("/shared")
+SHARED_DIR = Path(os.getenv("SHARED_DIR", "/shared"))
 SHARED_DIR.mkdir(parents=True, exist_ok=True)
 TEMPLATES_DIR = WEB_DIR / "templates"
 
